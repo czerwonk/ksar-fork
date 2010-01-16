@@ -14,13 +14,14 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JOptionPane;
 import javax.swing.tree.DefaultMutableTreeNode;
+
 import org.jfree.data.time.Second;
 import org.jfree.data.time.TimeSeries;
 
@@ -30,17 +31,27 @@ import org.jfree.data.time.TimeSeries;
  */
 public class kSar {
 
-    private final static Map<Integer, kSarInstanceConfig> CONFIGURATIONS = new HashMap<Integer, kSarInstanceConfig>();
-    private final static AtomicInteger LAST_INSTANCE_ID = new AtomicInteger();
+    private final static int TIMER_INTERVAL = 60000;
     
-    private final int instanceId;
     private final kSarInstanceConfig config;
+    private final Timer timer;
+    private String selectionPath;
     
     private kSar() {
-        this.instanceId = LAST_INSTANCE_ID.incrementAndGet();
         this.config = new kSarInstanceConfig();
-        
-        CONFIGURATIONS.put(this.instanceId, config);
+
+        this.timer = new Timer();
+        this.timer.schedule(new TimerTask() {
+
+            @Override
+            public void run() {
+                if (!reload_command.equals("Empty")) {
+                    selectionPath = myUI.getSelectionPath();
+                    do_mission(reload_command);
+                }
+            }
+            
+        }, 0, TIMER_INTERVAL);
     }
     
     public kSar(String title) {
@@ -846,14 +857,10 @@ public class kSar {
             if (myUI != null) {
                 //myUI.jTree1.setModel(new DefaultTreeModel(graphtree));
                 //myUI.jTree1.setSelectionPath(new TreePath(graphtree.getRoot()));
-                myUI.home2tree();
+                //myUI.home2tree();
+                myUI.trySelectByPathString(this.selectionPath);
                 changemenu(true);
                 myUI.setTitle(hostName + " : " + startofgraph + " -> " + endofgraph);
-                if (solarispagesize == -1 && sarType == 0 ) {
-                    JOptionPane.showMessageDialog(myUI, parser_end + parser_solarispagesize, "Parser end", JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                    JOptionPane.showMessageDialog(myUI, parser_end, "Parser end", JOptionPane.INFORMATION_MESSAGE);
-                }
             }
         }
     }

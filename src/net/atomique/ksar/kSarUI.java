@@ -26,6 +26,7 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 import net.atomique.ksar.Linux.PidCpuSar;
 import net.atomique.ksar.Linux.PidIOSar;
@@ -869,12 +870,56 @@ public class kSarUI extends javax.swing.JInternalFrame {
         DefaultTreeModel model = (DefaultTreeModel) jTree1.getModel();
         model.removeNodeFromParent(oldNode);
     }
-
-    public void home2tree() {
-        jTree1.setSelectionRow(0);
+    
+    public void trySelectByPathString(String pathString) {
         jTree1.expandRow(0);
+        
+        if (pathString == null 
+                || this.jTree1.getSelectionCount() == 0) {
+            this.jTree1.setSelectionRow(0);
+        }
+        
+        TreePath treePath = this.getNodeByPathString((DefaultMutableTreeNode)this.jTree1.getModel().getRoot(), pathString);
+        
+        if (treePath != null) {
+            this.jTree1.setSelectionPath(treePath);
+        }
+        else {
+            this.jTree1.setSelectionRow(0);
+        }
+    }
+    
+    private TreePath getNodeByPathString(DefaultMutableTreeNode node, String path) {
+        TreePath treePath = new TreePath(node.getPath());
+        
+        if (treePath.toString().equals(path)) {
+            return treePath;
+        }
+        
+        for (int i = 0; i < node.getChildCount(); i++) {
+            treePath = this.getNodeByPathString((DefaultMutableTreeNode)node.getChildAt(i), path);
+            
+            if (treePath != null) {
+                return treePath;
+            }
+        }
+        
+        return null;
+    }
+    
+    public String getSelectionPath() {
+        if (this.jTree1.getSelectionPath() == null) {
+            return null;
+        }
+        
+        return this.jTree1.getSelectionPath().toString();
     }
 
+    public void home2tree() {
+        jTree1.expandRow(0);
+        jTree1.setSelectionRow(0);
+    }
+    
     public void reset2tree() {
         DefaultTreeModel model = (DefaultTreeModel) jTree1.getModel();
         if (model.getChildCount(model.getRoot()) >= 1) {
