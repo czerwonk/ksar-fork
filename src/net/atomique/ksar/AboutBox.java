@@ -32,7 +32,7 @@ public class AboutBox extends JInternalFrame implements ActionListener {
         panel2.setLayout(borderLayout2);
         gridLayout1.setRows(6);
         gridLayout1.setColumns(1);
-        label1.setText("kSar " + VersionNumber.getVersionNumber());
+        label1.setText("kSar " + VersionNumber.getInstance().getVersionNumber());
         label2.setText("Author: xavier cherif");
         label3.setText("Copyright (c) 2006 ");
         label4.setText("ARS LONGA, VITA BREVIS");

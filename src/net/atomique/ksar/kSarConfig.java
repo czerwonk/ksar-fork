@@ -183,7 +183,7 @@ public class kSarConfig {
 
         // pdf options
         pdfindexpage = myPref.get("PDFindexpage", "");
-        pdfbottomleft = myPref.get("PDFbottomleft", "kSar-" + VersionNumber.getVersionNumber());
+        pdfbottomleft = myPref.get("PDFbottomleft", "kSar-" + VersionNumber.getInstance().getVersionNumber());
         pdfupperright = myPref.get("PDFupperright", "");
 
         // PNG/PNG options
@@ -252,7 +252,7 @@ public class kSarConfig {
             myPref = Preferences.userNodeForPackage(kSar.class);
             loaded = true;
         }
-        myPref.putInt("version", Integer.valueOf(VersionNumber.getVersionNumberint()));
+        myPref.putInt("version", Integer.valueOf(VersionNumber.getInstance().getVersionNumberint()));
         
         /* if lastReadDirectory & lastExportDirectory has been set write it to conf */
         if (lastReadDirectory != null) {
@@ -367,7 +367,7 @@ public class kSarConfig {
         myPref.putDouble("LinuxCpuUsrTrig", linuxcpuusrtrigger.doubleValue());
         //
         // pdf options
-        if (!pdfbottomleft.equals("kSar-" + VersionNumber.getVersionNumber())) {
+        if (!pdfbottomleft.equals("kSar-" + VersionNumber.getInstance().getVersionNumber())) {
             myPref.put("PDFbottomleft", pdfbottomleft);
         }
         myPref.put("PDFindexpage", pdfindexpage);

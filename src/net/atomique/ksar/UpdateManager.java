@@ -30,9 +30,9 @@ public class UpdateManager extends javax.swing.JInternalFrame {
         }
 
         initComponents();
-        jLabel1.setText("your version: " + VersionNumber.getVersionNumber());
+        jLabel1.setText("your version: " + VersionNumber.getInstance().getVersionNumber());
         jLabel2.setText("Available version: " + updateVersion);
-        if (VersionNumber.isOlderThan(updateVersion)) {
+        if (VersionNumber.getInstance().isOlderThan(updateVersion)) {
             jLabel3.setText("A new version is available");
             jLabel3.setForeground(Color.red);
         } else {    
@@ -118,7 +118,7 @@ public class UpdateManager extends javax.swing.JInternalFrame {
         Matcher matcher = pattern.matcher("");
 
         try {
-            URL url = new URL("http://ksar.atomique.net/updater2?" + VersionNumber.getVersionNumber());
+            URL url = new URL("http://ksar.atomique.net/updater2?" + VersionNumber.getInstance().getVersionNumber());
             BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
             while ((str = in.readLine()) != null) {
                 matcher.reset(updateString);

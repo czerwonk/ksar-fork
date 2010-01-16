@@ -8,6 +8,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -16,13 +18,21 @@ import java.io.InputStreamReader;
 public class VersionNumber {
 
     private static VersionNumber instance = new VersionNumber();
+    private final Pattern pattern;
+    
+    private String versionName;
+    private int major;
+    private int minor;
+    private int micro;
     
     public static VersionNumber getInstance() {
         return instance;
     }
     
     VersionNumber() {
-        setTo(readVersion("/kSar.ver"));
+        this.pattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
+        
+        setVersionNumber(readVersion("/kSar.ver"));
     }
     
     public String readVersion(String filename) {
@@ -46,63 +56,52 @@ public class VersionNumber {
             return null;
         }
     }
-    
-    public void setTo(String version) {
-        setVersionNumber(version);
-    }
 
     public void setVersionNumber(String version) {
-        myversion = version;
-        String tmp[]= version.split("\\.");
-        if ( tmp.length != 3) {
-            return;
+        Matcher matcher = this.pattern.matcher(version);
+        
+        if (!matcher.find()) {
+            throw new IllegalArgumentException(version);
         }
-        major = new Integer(tmp[0]);
-        minor = new Integer(tmp[1]);
-        micro = new Integer(tmp[2]);
+        
+        this.versionName = version;
+        this.major = new Integer(matcher.group(1));
+        this.minor = new Integer(matcher.group(2));
+        this.micro = new Integer(matcher.group(3));
+        
         return;
     }
 
-    public static String getVersionNumber() {
-        return myversion;
+    public String getVersionNumber() {
+        return this.versionName;
     }
-    public static Integer getVersionNumberint() {
-        return (major*100)+(minor*10)+micro;
+    public Integer getVersionNumberint() {
+        return ((this.major*100) + (this.minor*10) + this.micro);
     }
 
-    public static boolean isOlderThan(String version) {
-        Integer mymajor;
-        Integer myminor;
-        Integer mymicro;
-
-        String [] tmp= version.split("\\.");
-        if ( tmp.length != 3) {
-            return false;
-        }
-
-        mymajor = new Integer(tmp[0]);
-        myminor = new Integer(tmp[1]);
-        mymicro = new Integer(tmp[2]);
-
+    public boolean isOlderThan(String version) {
+        Matcher matcher = this.pattern.matcher(version);
         
-        if (major.intValue() < mymajor.intValue()) {
+        if (matcher == null) {
+            throw new IllegalArgumentException(version);
+        }
+        
+        Integer mymajor = new Integer(matcher.group(1));
+        Integer myminor = new Integer(matcher.group(2));
+        Integer mymicro = new Integer(matcher.group(3));
+        
+        if (this.major < mymajor.intValue()) {
             return true;
         }
         
-        if (minor.intValue() < myminor.intValue()) {
+        if (this.minor < myminor.intValue()) {
             return true;
         }
         
-        if (micro.intValue() < mymicro.intValue()) {
+        if (this.micro < mymicro.intValue()) {
             return true;
         }
 
         return false;
     }
-    
-    
-    private static String myversion;
-    static Integer major;
-    static Integer minor;
-    static Integer micro;
 }

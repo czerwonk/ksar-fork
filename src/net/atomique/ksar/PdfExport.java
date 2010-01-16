@@ -89,7 +89,7 @@ public class PdfExport extends PdfPageEventHelper implements Runnable {
             document.addKeywords(mysar.hostName);
             //document.addKeywords(mysar.myOS.sarStartDate);
             //document.addKeywords(mysar.myOS.sarEndDate);
-            document.addCreator("kSar Version:" + VersionNumber.getVersionNumber());
+            document.addCreator("kSar Version:" + VersionNumber.getInstance().getVersionNumber());
             document.addAuthor("Xavier cherif");
             
             // open the doc

@@ -333,12 +333,12 @@ public class Main {
     }
 
     public static void show_version() {
-        System.out.println("kSar version: " + VersionNumber.getVersionNumber());
+        System.out.println("kSar version: " + VersionNumber.getInstance().getVersionNumber());
         System.exit(0);
     }
 
     public static void usage() {
-        System.out.println("kSar version: " + VersionNumber.getVersionNumber());
+        System.out.println("kSar version: " + VersionNumber.getInstance().getVersionNumber());
         System.err.println("Usage: ");
         System.err.println("-version: show kSar version number");
         System.err.println("-help: show this help");
