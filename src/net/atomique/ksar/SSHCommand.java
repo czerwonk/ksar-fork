@@ -32,17 +32,41 @@ import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 //
 // kerberos
-import java.security.Security;
 import java.util.Hashtable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
 public class SSHCommand extends Thread {
 
+    private static Pattern pattern = Pattern.compile("^([^@]+)+@([^:]+)(?:\\:(\\d{1,5}))?$");
+    
+    private String host;
+    private String user;
+    private int port = 22;
+    private String command;
+    
+    private final kSar mysar;
+    private InputStream in = null;
+    private InputStream err = null;
+    private Channel channel = null;
+    private Session session = null;
+    private String cnx = null;
+    private String cmd_password = null;
+    private DefaultComboBoxModel comboModel = new DefaultComboBoxModel();
+    private JComboBox combo = new JComboBox(comboModel);
+    private DefaultComboBoxModel comboModel2 = new DefaultComboBoxModel();
+    private JComboBox combo2 = new JComboBox(comboModel2);
+    String shortcut_command = new String();
+    private boolean debug = false;
+    private int num_try = 0;
+    private JSch jsch = null;
+    
     final static Properties systemprops = System.getProperties();
 
-    public SSHCommand(kSar hissar, String command) {
+    public SSHCommand(kSar hissar, String command, boolean autoExecute) {
         File temp = null;
         num_try = 0;
         String username = null;
@@ -232,19 +256,19 @@ public class SSHCommand extends Thread {
                 if (ret2 != JOptionPane.OK_OPTION) {
                     return;
                 }
-                cmd = new String((String) combo2.getSelectedItem());
+                this.command = new String((String) combo2.getSelectedItem());
 
                 //cmd=(String)JOptionPane.showInternalInputDialog(mysar.myUI,"Enter your sar command", "SSH Command", JOptionPane.QUESTION_MESSAGE, null,null,"sar -A");
 
-                if (cmd == null) {
+                if (this.command == null) {
                     return;
                 }
             } else {
-                cmd = passed_cmd;
+                this.command = passed_cmd;
             }
             
             channel = session.openChannel("exec");
-            ((ChannelExec) channel).setCommand("LC_ALL=C " + cmd  +  "\n");
+            ((ChannelExec) channel).setCommand("LC_ALL=C " + this.command  +  "\n");
             channel.setInputStream(null);
             channel.setXForwarding(false);
             ((ChannelExec) channel).setErrStream(System.err);
@@ -263,11 +287,11 @@ public class SSHCommand extends Thread {
 
             // keep the command for future use for the combo
             if (kSarConfig.sshconnectioncmd == null || kSarConfig.sshconnectioncmd.size() == 0) {
-                kSarConfig.sshconnectioncmd.add(cmd);
+                kSarConfig.sshconnectioncmd.add(this.command);
                 kSarConfig.writeDefault();
             } else {
-                if ( ! kSarConfig.sshconnectioncmd.contains(cmd) ) {
-                    kSarConfig.sshconnectioncmd.add(cmd);
+                if ( ! kSarConfig.sshconnectioncmd.contains(this.command) ) {
+                    kSarConfig.sshconnectioncmd.add(this.command);
                     kSarConfig.writeDefault();
                 }
             }
@@ -278,16 +302,44 @@ public class SSHCommand extends Thread {
         // make the command available for redo
         if (cmd_password != null) {
             if (port != 22) {
-                shortcut_command = "ssh://" + username + ":" + cmd_password + "@" + host + ":" + port + "/" + cmd;
+                shortcut_command = "ssh://" + username + ":" + cmd_password + "@" + host + ":" + port + "/" + this.command;
             } else {
-                shortcut_command = "ssh://" + username + ":" + cmd_password + "@" + host + "/" + cmd;
+                shortcut_command = "ssh://" + username + ":" + cmd_password + "@" + host + "/" + this.command;
 
             }
         } else {
-            shortcut_command = "ssh://" + cnx + "/" + cmd;
+            shortcut_command = "ssh://" + cnx + "/" + this.command;
         }
         
         return;
+    }
+    
+    public String getServer() {
+        return String.format("%s%s%s", 
+                             ((this.user != null) ? this.user + "@" : "user"),
+                             ((this.host != null) ? this.host : "server"),
+                             ((this.port != 22) ? ":" + Integer.toString(this.port) : ""));
+    }
+    
+    public void setServer(String server) {
+        Matcher matcher = pattern.matcher(server);
+        
+        if (matcher.find()) {
+            this.user = matcher.group(1);
+            this.host = matcher.group(2);
+            
+            if (matcher.groupCount() == 3) {
+                this.port = Integer.parseInt(matcher.group(3));
+            }
+        }
+    }
+    
+    public String getCommand() {
+        return this.command;
+    }
+    
+    public void setCommand(String command) {
+        this.command = command;
     }
 
     public String get_action() {
@@ -488,22 +540,4 @@ public class SSHCommand extends Thread {
             System.err.println(message);
         }
     }
-    int port = 22;
-    String host = null;
-    kSar mysar = null;
-    InputStream in = null;
-    InputStream err = null;
-    Channel channel = null;
-    Session session = null;
-    String cnx = null;
-    String cmd = null;
-    String cmd_password = null;
-    private DefaultComboBoxModel comboModel = new DefaultComboBoxModel();
-    private JComboBox combo = new JComboBox(comboModel);
-    private DefaultComboBoxModel comboModel2 = new DefaultComboBoxModel();
-    private JComboBox combo2 = new JComboBox(comboModel2);
-    String shortcut_command = new String();
-    private boolean debug = false;
-    int num_try = 0;
-    JSch jsch = null;
 }

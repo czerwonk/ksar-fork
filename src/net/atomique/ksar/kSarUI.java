@@ -398,11 +398,11 @@ public class kSarUI extends javax.swing.JInternalFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
     private void menuloadcmdActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuloadcmdActionPerformed
-        mysar.do_localcommand();
+        mysar.do_localcommand(null);
 }//GEN-LAST:event_menuloadcmdActionPerformed
 
     private void menuloadtxtActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuloadtxtActionPerformed
-        mysar.do_fileread();
+        mysar.do_fileread(null);
 }//GEN-LAST:event_menuloadtxtActionPerformed
 
     public void refreshGraph() {

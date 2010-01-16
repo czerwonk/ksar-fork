@@ -65,56 +65,64 @@ public class kSar {
         addGUI(title);
         do_mission(title);
     }
-
-    public void do_fileread() {
-        this.do_fileread(null);
-    }
     
     public void do_fileread(String filename) {
         resetInfo();
         
+        FileRead command = null;
+        
         if (filename == null) {
-            launched_command = new FileRead(this, this.config.getLastFile(), false);
+            command = new FileRead(this, this.config.getLastFile(), false);
         } 
         else {
-            launched_command = new FileRead(this, new File(filename), true);
+            command = new FileRead(this, new File(filename), true);
         }
-        reload_command = ((FileRead) launched_command).get_action();
+        
+        launched_command = command;
+        reload_command = command.get_action();
         launched_command.start();
         
-        this.config.setLastFile(((FileRead)launched_command).sarfilename);
+        this.config.setLastFile(command.sarfilename);
     }
 
     public void do_sshread(String cmd) {
         resetInfo();
         
+        SSHCommand command = null;
+        
         if (cmd == null) {
-            launched_command = new SSHCommand(this, null);
-        //mysar.reload_command=t.get_command();
-        } else {
-            launched_command = new SSHCommand(this, cmd);
+            command = new SSHCommand(this, null, false);
+            command.setCommand(this.config.getLastSshCommand());
+            command.setServer(this.config.getLastSshServer());
+        } 
+        else {
+            command = new SSHCommand(this, cmd, true);
         }
-        reload_command = ((SSHCommand) launched_command).get_action();
+        
+        launched_command = command;
+        reload_command = command.get_action();
         launched_command.start();
-    }
- 
-    public void do_localcommand() {
-        this.do_localcommand(null);
+        
+        this.config.setLastSshCommand(command.getCommand());
+        this.config.setLastSshServer(command.getServer());
     }
     
     public void do_localcommand(String cmd) {
         resetInfo();
         
+        LocalCommand command = null;
+        
         if (cmd == null) {
-            launched_command = new LocalCommand(this, this.config.getLastCommand(), false);
-        //mysar.reload_command=t.get_command();
+            command = new LocalCommand(this, this.config.getLastCommand(), false);
         } else {
-            launched_command = new LocalCommand(this, cmd, true);
+            command = new LocalCommand(this, cmd, true);
         }
-        reload_command = ((LocalCommand) launched_command).get_action();
+        
+        launched_command = command;
+        reload_command = command.get_action();
         launched_command.start();
         
-        this.config.setLastCommand(((LocalCommand)launched_command).command);
+        this.config.setLastCommand(command.command);
     }
 
     public void do_mission(String title) {

@@ -12,6 +12,7 @@ final class kSarInstanceConfig {
     private String lastCommand;
     private File lastFile;
     private String lastSshServer;
+    private String lastSshCommand;
     
     public String getLastCommand() {
         return this.lastCommand;
@@ -35,5 +36,13 @@ final class kSarInstanceConfig {
     
     public void setLastSshServer(String lastSshServer) {
         this.lastSshServer = lastSshServer;
+    }
+    
+    public String getLastSshCommand() {
+        return this.lastSshCommand;
+    }
+    
+    public void setLastSshCommand(String lastSshCommand) {
+        this.lastSshCommand = lastSshCommand;
     }
 }
