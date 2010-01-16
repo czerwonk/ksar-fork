@@ -72,10 +72,10 @@ public class kSar {
         FileRead command = null;
         
         if (filename == null) {
-            command = new FileRead(this, this.config.getLastFile(), false);
+            command = new FileRead(this, this.config.getLastFile(), true);
         } 
         else {
-            command = new FileRead(this, new File(filename), true);
+            command = new FileRead(this, new File(filename), false);
         }
         
         launched_command = command;
@@ -91,12 +91,10 @@ public class kSar {
         SSHCommand command = null;
         
         if (cmd == null) {
-            command = new SSHCommand(this, null, true);
-            command.setCommand(this.config.getLastSshCommand());
-            command.setServer(this.config.getLastSshServer());
+            command = new SSHCommand(this, this.config.getLastSshServer(), this.config.getLastSshCommand());
         } 
         else {
-            command = new SSHCommand(this, cmd, false);
+            command = new SSHCommand(this, cmd);
         }
         
         launched_command = command;

@@ -47,71 +47,64 @@ public class SSHCommand extends Thread {
     private String user;
     private int port = 22;
     private String command;
+    private String password;
+    private boolean promptForData;
     
     private final kSar mysar;
     private InputStream in = null;
     private InputStream err = null;
     private Channel channel = null;
     private Session session = null;
-    private String cnx = null;
-    private String cmd_password = null;
     private DefaultComboBoxModel comboModel = new DefaultComboBoxModel();
     private JComboBox combo = new JComboBox(comboModel);
     private DefaultComboBoxModel comboModel2 = new DefaultComboBoxModel();
     private JComboBox combo2 = new JComboBox(comboModel2);
-    String shortcut_command = new String();
     private boolean debug = false;
     private int num_try = 0;
     private JSch jsch = null;
     
     final static Properties systemprops = System.getProperties();
 
-    public SSHCommand(kSar hissar, String command, boolean autoExecute) {
-        File temp = null;
-        num_try = 0;
-        String username = null;
-        mysar = hissar;
-        BufferedWriter out;
-
-        // passed via command
-        String passed_user = null;
-        String passed_host = null;
-        String passed_cmd = null;
-        int passed_port = 22;
-
-        final JInternalFrame dialog = new JInternalFrame("");
-
-        if (command != null) {
-            String[] cmd_splitted = command.split("@", 2);
-            if (cmd_splitted.length != 2) {
-                return;
-            }
-            String[] user_part = cmd_splitted[0].split(":", 2);
-            if (user_part.length == 2) {
-                passed_user = user_part[0];
-                cmd_password = user_part[1];
-            } else {
-                passed_user = cmd_splitted[0];
-                cmd_password= null;
-            }
-            String[] cmd_part = cmd_splitted[1].split("/", 2);
-            if (cmd_part.length != 2) {
-                return;
-            }
-            String[] host_part = cmd_part[0].split(":", 2);
-            if (host_part.length == 2) {
-                passed_host = host_part[0];
-                try {
-                    passed_port = Integer.parseInt(host_part[1]);
-                } catch (NumberFormatException e) {
-                    return;
-                }
-            } else {
-                passed_host = host_part[0];
-            }
-            passed_cmd = cmd_part[1];
+    private SSHCommand(kSar hissar) {
+        this.mysar = hissar;
+    }
+    
+    public SSHCommand(kSar hissar, String suggestedServer, String suggestedCommand) {
+        this(hissar);
+        
+        this.promptForData = true;
+        this.setServer(suggestedServer);
+        this.command = suggestedCommand;
+        
+        this.connect();
+    }
+    
+    public SSHCommand(kSar hissar, String command) {
+        this(hissar);
+        
+        this.parseCommand(command);
+        
+        this.connect();
+    }
+    
+    private void parseCommand(String cmd) {
+        if (cmd == null) {
+            return;
         }
-
+        
+        String[] splitted = cmd.split("/");
+        
+        if (splitted.length != 2) {
+            return;
+        }
+        
+        this.setServer(splitted[0]);
+        this.command = splitted[1];
+    }
+    
+    private void connect() {
+        num_try = 0;
+        String cnx = null;
 
         try {
             // start ssh
@@ -130,71 +123,44 @@ public class SSHCommand extends Thread {
             // get user home
             String userhome = (String) systemprops.get("user.home") + (String) systemprops.get("file.separator");
 
-            // make the combo with old connection + local cnx
-            if (kSarConfig.sshconnectionmap == null || kSarConfig.sshconnectionmap.size() < 1) {
-                comboModel.addElement(System.getProperty("user.name") + "@localhost");
-            } else {
-                for (Iterator it = kSarConfig.sshconnectionmap.iterator(); it.hasNext();) {
-                    comboModel.addElement(it.next());
-                }
-                if ( ! kSarConfig.sshconnectionmap.contains((String) System.getProperty("user.name") + "@localhost")) {
+            if (this.user == null 
+                    || this.host == null 
+                    || this.promptForData) {
+                // make the combo with old connection + local cnx
+                if (kSarConfig.sshconnectionmap == null || kSarConfig.sshconnectionmap.size() < 1) {
                     comboModel.addElement(System.getProperty("user.name") + "@localhost");
+                } else {
+                    for (Iterator it = kSarConfig.sshconnectionmap.iterator(); it.hasNext();) {
+                        comboModel.addElement(it.next());
+                    }
+                    if ( ! kSarConfig.sshconnectionmap.contains((String) System.getProperty("user.name") + "@localhost")) {
+                        comboModel.addElement(System.getProperty("user.name") + "@localhost");
+                    }
                 }
-            }
-            // make the combo editable ;-)
-            combo.setEditable(true);
-
-            if (passed_user == null) {
+                
+                // make the combo editable ;-)
+                combo.setEditable(true);
+                
+                if (this.user != null) {
+                    comboModel.setSelectedItem(this.getServer());
+                }
+                
                 // ok no command passed with user/host popup the window
                 int ret = JOptionPane.showConfirmDialog(mysar.myUI, combo, "SSH Connection", JOptionPane.YES_NO_CANCEL_OPTION);
                 if (ret != JOptionPane.OK_OPTION) {
                     return;
                 }
-                cnx = new String((String) combo.getSelectedItem());
 
-                if (cnx == null) {
+                if (combo.getSelectedItem() == null) {
                     return;
                 }
-
-                if (cnx.indexOf('@') == -1) {
-                    JOptionPane.showMessageDialog(mysar.myUI, "You must enter login@host", "SSH error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                username = cnx.substring(0, cnx.indexOf('@'));
-                // User is specifying a port
-                if (cnx.indexOf(':') != -1) {
-                    host = cnx.substring(cnx.indexOf('@') + 1, cnx.indexOf(':'));
-                    String s_port = cnx.substring(cnx.indexOf(':') + 1);
-                    if (s_port == null || s_port.length() == 0 || s_port.equals("") || (port = Integer.parseInt(s_port)) <= 0) {
-                        JOptionPane.showMessageDialog(mysar.myUI, "You must enter login@host:port", "SSH error", JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-                } else {
-                    host = cnx.substring(cnx.indexOf('@') + 1);
-                }
-            } else {
-                // info has been passed via command
-                host = passed_host;
-                username = passed_user;
-                port = passed_port;
-                if (port != 22) {
-                    cnx = username + "@" + host + ":" + port;
-                } else {
-                    cnx = username + "@" + host;
-                }
+                
+                cnx = (String)combo.getSelectedItem();
+                this.setServer(cnx);
             }
-            //
-
-
-            //kerberos
-            //System.setProperty("java.security.useSubjectCredsOnly", "false");
-            //System.setProperty("sun.security.krb5.debug", "true");
-            
-        
 
             // start session, with user host port
-            session = jsch.getSession(username, host, port);
+            session = jsch.getSession(this.user, this.host, this.port);
             
             if ( ! kSarConfig.ssh_stricthostchecking ) {
                 java.util.Properties config = new java.util.Properties();
@@ -207,12 +173,12 @@ public class SSHCommand extends Thread {
                 jsch.setKnownHosts(userhome + ".ssh" + (String) systemprops.get("file.separator") + "known_hosts");
             }
             // set the password is unified is used
-            if (mysar.mydesktop.unified_id && mysar.mydesktop.unified_user.equals(username)) {
+            if (mysar.mydesktop.unified_id && mysar.mydesktop.unified_user.equals(this.user)) {
                 session.setPassword(mysar.mydesktop.unified_pass);
             }
-
-            if (cmd_password != null) {
-                session.setPassword(cmd_password);
+            
+            if (this.password != null) {
+                session.setPassword(this.password);
             }
 
             // make the ui 
@@ -238,33 +204,33 @@ public class SSHCommand extends Thread {
                 }
             }
 
-            // make the combo of the all command + sar -A
-            if (kSarConfig.sshconnectioncmd == null || kSarConfig.sshconnectioncmd.size() < 1) {
-                comboModel2.addElement("sar -A");
-            } else {
-                for (Iterator it = kSarConfig.sshconnectioncmd.iterator(); it.hasNext();) {
-                    comboModel2.addElement(it.next());
-                }
-                if ( ! kSarConfig.sshconnectioncmd.contains("sar -A") ) {
+            if (this.command == null || this.promptForData) {
+                // make the combo of the all command + sar -A
+                if (kSarConfig.sshconnectioncmd == null || kSarConfig.sshconnectioncmd.size() < 1) {
                     comboModel2.addElement("sar -A");
+                } else {
+                    for (Iterator it = kSarConfig.sshconnectioncmd.iterator(); it.hasNext();) {
+                        comboModel2.addElement(it.next());
+                    }
+                    if ( ! kSarConfig.sshconnectioncmd.contains("sar -A") ) {
+                        comboModel2.addElement("sar -A");
+                    }
                 }
-            }
-            combo2.setEditable(true);
-
-            if (passed_cmd == null) {
+                combo2.setEditable(true);
+                
+                if (this.command != null) {
+                    comboModel2.setSelectedItem(this.command);   
+                }
+                
                 int ret2 = JOptionPane.showConfirmDialog(mysar.myUI, combo2, "SSH Command", JOptionPane.YES_NO_CANCEL_OPTION);
                 if (ret2 != JOptionPane.OK_OPTION) {
                     return;
                 }
-                this.command = new String((String) combo2.getSelectedItem());
-
-                //cmd=(String)JOptionPane.showInternalInputDialog(mysar.myUI,"Enter your sar command", "SSH Command", JOptionPane.QUESTION_MESSAGE, null,null,"sar -A");
+                this.command = (String)combo2.getSelectedItem();
 
                 if (this.command == null) {
                     return;
                 }
-            } else {
-                this.command = passed_cmd;
             }
             
             channel = session.openChannel("exec");
@@ -298,37 +264,38 @@ public class SSHCommand extends Thread {
         } catch (Exception e) {
             System.out.println(e);
         }
-
-        // make the command available for redo
-        if (cmd_password != null) {
-            if (port != 22) {
-                shortcut_command = "ssh://" + username + ":" + cmd_password + "@" + host + ":" + port + "/" + this.command;
-            } else {
-                shortcut_command = "ssh://" + username + ":" + cmd_password + "@" + host + "/" + this.command;
-
-            }
-        } else {
-            shortcut_command = "ssh://" + cnx + "/" + this.command;
-        }
-        
-        return;
     }
     
     public String getServer() {
-        return String.format("%s%s%s", 
-                             ((this.user != null) ? this.user + "@" : "user"),
-                             ((this.host != null) ? this.host : "server"),
+        return String.format("%s%s@%s%s", 
+                             ((this.user != null) ? this.user : "user.name"),
+                             ((this.password != null) ? ":" + this.password : ""),
+                             ((this.host != null) ? this.host : "localhost"),
                              ((this.port != 22) ? ":" + Integer.toString(this.port) : ""));
     }
     
     public void setServer(String server) {
+        if (server == null) {
+            return;
+        }
+        
         Matcher matcher = pattern.matcher(server);
         
         if (matcher.find()) {
-            this.user = matcher.group(1);
+            if (matcher.group(1).contains(":")) {
+                String[] splittedLogin = matcher.group(1).split(":");
+                
+                this.user = splittedLogin[0];
+                this.password = splittedLogin[1];
+            }
+            else
+            {
+                this.user = matcher.group(1);
+            }
+            
             this.host = matcher.group(2);
             
-            if (matcher.groupCount() == 3) {
+            if (matcher.group(3) != null) {
                 this.port = Integer.parseInt(matcher.group(3));
             }
         }
@@ -343,7 +310,7 @@ public class SSHCommand extends Thread {
     }
 
     public String get_action() {
-        return shortcut_command;
+        return ("ssh://" + this.getServer() + "/" + this.command);
     }
 
     public void run() {
@@ -392,7 +359,7 @@ public class SSHCommand extends Thread {
                 return true;
             }
         }
-        String passwd;
+        //String passwd;
         JTextField passwordField = (JTextField) new JPasswordField(20);
         String passphrase;
         JTextField passphraseField = (JTextField) new JPasswordField(20);
@@ -401,14 +368,14 @@ public class SSHCommand extends Thread {
             if (mysar.mydesktop.unified_id) {
                 return mysar.mydesktop.unified_pass;
             }
-            if (cmd_password != null) {
-                return cmd_password;
+            if (password != null) {
+                return password;
             }
             return passphrase;
         }
 
         public boolean promptPassphrase(String message) {
-            if (( ! mysar.mydesktop.unified_id && cmd_password == null) || num_try > 0) {
+            if (( ! mysar.mydesktop.unified_id && password == null) || num_try > 0) {
                 Object[] ob = {passphraseField};
                 int result = JOptionPane.showConfirmDialog(mysar.myUI, ob, message, JOptionPane.OK_CANCEL_OPTION);
                 if (result == JOptionPane.OK_OPTION) {
@@ -427,20 +394,17 @@ public class SSHCommand extends Thread {
             if (mysar.mydesktop.unified_id) {
                 return mysar.mydesktop.unified_pass;
             }
-            if (cmd_password != null) {
-                return cmd_password;
-            }
-
-            return passwd;
+            
+            return password;
         }
 
         public boolean promptPassword(String message) {
-            if (( ! mysar.mydesktop.unified_id  && cmd_password == null) || num_try > 0) {
+            if (( ! mysar.mydesktop.unified_id  && password == null) || num_try > 0) {
                 Object[] ob = {passwordField};
                 if (mysar.myUI != null) {
                     int result = JOptionPane.showConfirmDialog(mysar.myUI, ob, message, JOptionPane.OK_CANCEL_OPTION);
                     if (result == JOptionPane.OK_OPTION) {
-                        passwd = passwordField.getText();
+                        password = passwordField.getText();
                         return true;
                     } else {
                         return false;
@@ -461,9 +425,9 @@ public class SSHCommand extends Thread {
                 num_try++;
                 return mysar.mydesktop.unified_pass.split("[.]");
             }
-            if (cmd_password != null) {
+            if (password != null) {
                 num_try++;
-                return cmd_password.split("[.]");
+                return password.split("[.]");
             }
             panel = new JPanel();
             panel.setLayout(new GridBagLayout());
@@ -503,7 +467,7 @@ public class SSHCommand extends Thread {
                     response[i] = texts[i].getText();
                     t.append(response[i]);
                 }
-                cmd_password = t.toString();
+                password = t.toString();
                 return response;
             } else {
                 return null;  // cancel
