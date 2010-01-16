@@ -455,7 +455,7 @@ public class Main {
 
         System.setProperty("com.apple.mrj.application.growbox.intrudes", "false");
         set_lookandfeel();
-        doSplashScreen();
+        //doSplashScreen();
         //lookandfeel();
         //try {
         //    UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
