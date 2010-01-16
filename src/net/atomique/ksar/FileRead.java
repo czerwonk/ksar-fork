@@ -18,10 +18,10 @@ public class FileRead  extends Thread {
     private final kSar mysar;
     private File sarfilename = null;
     
-    public FileRead(kSar hissar, File file, boolean autoExecute) {
+    public FileRead(kSar hissar, File file, boolean promptForData) {
         mysar = hissar;
         
-        if (file != null && autoExecute) {
+        if (file != null && !promptForData) {
             sarfilename = file;  
         }
         else {

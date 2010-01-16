@@ -19,10 +19,10 @@ public class LocalCommand extends Thread {
     private InputStream in;
     private String command;
     
-    public LocalCommand(kSar hissar, String hiscommand, boolean autoExecute) {
+    public LocalCommand(kSar hissar, String hiscommand, boolean promptForData) {
         mysar = hissar;
         
-        if (hiscommand != null && autoExecute) {
+        if (hiscommand != null && !promptForData) {
             this.command = hiscommand;
         }
         else {   

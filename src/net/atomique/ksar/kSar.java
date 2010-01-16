@@ -91,12 +91,12 @@ public class kSar {
         SSHCommand command = null;
         
         if (cmd == null) {
-            command = new SSHCommand(this, null, false);
+            command = new SSHCommand(this, null, true);
             command.setCommand(this.config.getLastSshCommand());
             command.setServer(this.config.getLastSshServer());
         } 
         else {
-            command = new SSHCommand(this, cmd, true);
+            command = new SSHCommand(this, cmd, false);
         }
         
         launched_command = command;
@@ -113,9 +113,9 @@ public class kSar {
         LocalCommand command = null;
         
         if (cmd == null) {
-            command = new LocalCommand(this, this.config.getLastCommand(), false);
+            command = new LocalCommand(this, this.config.getLastCommand(), true);
         } else {
-            command = new LocalCommand(this, cmd, true);
+            command = new LocalCommand(this, cmd, false);
         }
         
         launched_command = command;
