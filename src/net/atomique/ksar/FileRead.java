@@ -47,10 +47,6 @@ public class FileRead  extends Thread {
     public File getSarFile() {
         return this.sarfilename;
     }
-    
-    public void setSarFile(File sarFile) {
-        this.sarfilename = sarFile;
-    }
 
     public String get_action() {
         return ("file://" + sarfilename);

@@ -56,10 +56,6 @@ public class LocalCommand extends Thread {
     public String getCommand () {
         return this.command;
     }
-    
-    public void setCommand(String command) {
-        this.command = command;
-    }
 
     public void run() {
         try {
