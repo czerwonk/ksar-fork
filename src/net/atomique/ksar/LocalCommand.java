@@ -11,21 +11,26 @@ import javax.swing.JOptionPane;
 
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
 public class LocalCommand extends Thread {
 
+    private final kSar mysar;
+    private InputStream in;
+    private String command;
+    
     public LocalCommand(kSar hissar, String hiscommand, boolean autoExecute) {
         mysar = hissar;
         
         if (hiscommand != null && autoExecute) {
-            command = hiscommand;
+            this.command = hiscommand;
         }
         else {   
-            command = JOptionPane.showInputDialog("Enter local command ", "sar -A");
+            String suggestion = ((hiscommand != null) ? hiscommand : "sar -A");
+            this.command = JOptionPane.showInputDialog("Enter local command ", suggestion);
         }
 
-        if (command == null) {
+        if (this.command == null) {
             return;
         }
         
@@ -38,14 +43,22 @@ public class LocalCommand extends Thread {
             in = p.getInputStream();
         } catch (Exception e) {
             if ( mysar.myUI != null ) {
-                JOptionPane.showMessageDialog(null, "There was a problem while running the command " +command, "Local error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "There was a problem while running the command " + this.command, "Local error", JOptionPane.ERROR_MESSAGE);
             } else {
-                System.err.println("There was a problem while running the command " +command);
+                System.err.println("There was a problem while running the command " + this.command);
             }
             in = null;
         }
 
         return;
+    }
+    
+    public String getCommand () {
+        return this.command;
+    }
+    
+    public void setCommand(String command) {
+        this.command = command;
     }
 
     public void run() {
@@ -63,10 +76,6 @@ public class LocalCommand extends Thread {
     }
     
     public String get_action() {
-        return "cmd://" + command;
+        return "cmd://" + this.command;
     }
-    
-    kSar mysar = null;
-    InputStream in = null;
-    public String command=null;
 }

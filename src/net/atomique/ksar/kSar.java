@@ -122,7 +122,7 @@ public class kSar {
         reload_command = command.get_action();
         launched_command.start();
         
-        this.config.setLastCommand(command.command);
+        this.config.setLastCommand(command.getCommand());
     }
 
     public void do_mission(String title) {
