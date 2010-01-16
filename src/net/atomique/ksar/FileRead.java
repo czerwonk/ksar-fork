@@ -15,6 +15,9 @@ import javax.swing.JFileChooser;
  */
 public class FileRead  extends Thread {
 
+    private final kSar mysar;
+    private File sarfilename = null;
+    
     public FileRead(kSar hissar, File file, boolean autoExecute) {
         mysar = hissar;
         
@@ -40,27 +43,40 @@ public class FileRead  extends Thread {
         
         return null;
     }
+    
+    public File getSarFile() {
+        return this.sarfilename;
+    }
+    
+    public void setSarFile(File sarFile) {
+        this.sarfilename = sarFile;
+    }
 
     public String get_action() {
-        return "file://"+sarfilename;
+        return ("file://" + sarfilename);
     }
     
     public void run() {
-        try {
-            if (sarfilename == null) {
-                return;
-            }
-            
-            FileReader tmpfile = new FileReader(sarfilename);
-            BufferedReader myfile = new BufferedReader(tmpfile);
-            mysar.parse(myfile);
-            myfile.close();
-            tmpfile.close();
+        if (this.sarfilename == null) {
             return;
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+        
+        BufferedReader reader = null;
+        
+        try {
+            reader = new BufferedReader(new FileReader(sarfilename));
+            mysar.parse(reader);
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        finally {
+            try {
+                reader.close();
+            }
+            catch (Exception ex) {
+                // ex would hide exception in outer try block
+            }
         }
     }
-    kSar mysar = null;
-    public File sarfilename = null;
 }

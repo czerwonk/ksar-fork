@@ -82,7 +82,7 @@ public class kSar {
         reload_command = command.get_action();
         launched_command.start();
         
-        this.config.setLastFile(command.sarfilename);
+        this.config.setLastFile(command.getSarFile());
     }
 
     public void do_sshread(String cmd) {
