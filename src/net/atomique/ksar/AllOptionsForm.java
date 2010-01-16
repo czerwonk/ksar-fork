@@ -7,6 +7,8 @@ package net.atomique.ksar;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.SwingUtilities;
@@ -19,6 +21,8 @@ import javax.swing.UIManager;
 public class AllOptionsForm extends javax.swing.JInternalFrame {
 
     public static final long serialVersionUID = 501L;
+    private File sshIdentity;
+    private File backgroundImage;
     
     /** Creates new form AllOptionsForm */
     public AllOptionsForm(final kSarDesktop hisdesktop) {
@@ -53,6 +57,29 @@ public class AllOptionsForm extends javax.swing.JInternalFrame {
         load_landf();
         resetButtonActionPerformed(null);
         jComboBox1.addActionListener(actionListener);
+        
+        this.refreshConfiguration();
+    }
+
+    private void refreshConfiguration() {
+        this.jSpinner1.setValue(new Integer(kSarConfig.imagewidth));
+        this.jSpinner2.setValue(new Integer(kSarConfig.imageheight));
+        this.jCheckBox1.setSelected(kSarConfig.imagehtml);
+        this.jCheckBox2.setSelected(kSarConfig.ssh_stricthostchecking);
+        this.jTextField3.setText(kSarConfig.pdfbottomleft);
+        this.jTextField4.setText(kSarConfig.pdfupperright);
+        this.jTextField5.setText(kSarConfig.pdfindexpage);
+        this.jTextField1.setText(kSarConfig.getBackground_image());
+        this.jTextField2.setText(kSarConfig.getBackground_image());
+        this.jComboBox1.setSelectedItem(kSarConfig.landf);
+        
+        if (kSarConfig.sshidentity != null && kSarConfig.sshidentity.exists()) {
+            jTextField2.setText(kSarConfig.sshidentity.toString());
+        }
+        
+        if (kSarConfig.background_image != null && kSarConfig.background_image.exists()) {
+            jTextField1.setText(kSarConfig.background_image.toString());
+        }
     }
 
     /** This method is called from within the constructor to
@@ -271,17 +298,23 @@ public class AllOptionsForm extends javax.swing.JInternalFrame {
 }//GEN-LAST:event_cancelButtonActionPerformed
 
     private void jTextField1MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTextField1MouseClicked
-        BackgroundImage tmpimg = new BackgroundImage(null);
-        if (kSarConfig.background_image != null) {
-            jTextField1.setText(kSarConfig.background_image.toString());
+        BackgroundImageSelector selector = new BackgroundImageSelector();
+        File file = selector.chooseBackgroundFile();
+        
+        if (file != null) {
+            this.backgroundImage = file;
+            jTextField1.setText(file.toString());
         }
  
     }//GEN-LAST:event_jTextField1MouseClicked
 
     private void jTextField2MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTextField2MouseClicked
-        SSHIdentity tmpident = new SSHIdentity(null);
-        if (kSarConfig.sshidentity != null) {
-            jTextField2.setText(kSarConfig.sshidentity.toString());
+        SSHIdentitySelector sshIdentiyChooser = new SSHIdentitySelector();
+        File file = sshIdentiyChooser.selectIdentity();
+        
+        if (file != null) {
+            this.sshIdentity = file;
+            this.jTextField2.setText(file.toString());
         }
     }//GEN-LAST:event_jTextField2MouseClicked
 
@@ -297,21 +330,21 @@ public class AllOptionsForm extends javax.swing.JInternalFrame {
         kSarConfig.pdfindexpage = jTextField5.getText();
         kSarConfig.landf = jComboBox1.getSelectedItem().toString();
         kSarConfig.ssh_stricthostchecking = jCheckBox2.isSelected();
+        
+        if (this.sshIdentity != null) {
+            kSarConfig.sshidentity = this.sshIdentity;
+        }
+        
+        if (this.backgroundImage != null) {
+            kSarConfig.background_image = this.backgroundImage;
+        }
+        
         kSarConfig.writeDefault();
         this.dispose();
     }//GEN-LAST:event_okButtonActionPerformed
 
     private void resetButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_resetButtonActionPerformed
-        jSpinner1.setValue(new Integer(kSarConfig.imagewidth));
-        jSpinner2.setValue(new Integer(kSarConfig.imageheight));
-        jCheckBox1.setSelected(kSarConfig.imagehtml);
-        jCheckBox2.setSelected(kSarConfig.ssh_stricthostchecking);
-        jTextField3.setText(kSarConfig.pdfbottomleft);
-        jTextField4.setText(kSarConfig.pdfupperright);
-        jTextField5.setText(kSarConfig.pdfindexpage);
-        jTextField1.setText(kSarConfig.getBackground_image());
-        jTextField2.setText(kSarConfig.getBackground_image());
-        jComboBox1.setSelectedItem(kSarConfig.landf);        
+        this.refreshConfiguration();
     }//GEN-LAST:event_resetButtonActionPerformed
 
     private void load_landf() {
