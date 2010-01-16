@@ -5,47 +5,40 @@
 package net.atomique.ksar;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import javax.swing.JFileChooser;
 
 /**
  *
- * @author alex 
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
 public class FileRead  extends Thread {
 
-    public FileRead(kSar hissar) {
+    public FileRead(kSar hissar, File file, boolean autoExecute) {
         mysar = hissar;
-        try {
-            sarfilename = getLocalFile();
-            if (sarfilename == null) {
-            }
-            return;
-        } catch (Exception e) {
+        
+        if (file != null && autoExecute) {
+            sarfilename = file;  
         }
-    }
-
-    public FileRead(kSar hissar, String filename) {
-        mysar = hissar;
-        sarfilename = filename;
+        else {
+            sarfilename = this.getLocalFile(file);
+        }
     }
     
-    public String getLocalFile() {
-        String filename = null;
+    public File getLocalFile(File file) {
         JFileChooser fc = new JFileChooser();
-        if ( kSarConfig.lastReadDirectory != null) {
-            fc.setCurrentDirectory(kSarConfig.lastReadDirectory);
+        
+        if (file != null && file.exists()) {
+            fc.setSelectedFile(file);
         }
-        int returnVal = fc.showDialog(null, "Open");
-        if (returnVal == JFileChooser.APPROVE_OPTION) {
-            filename = fc.getSelectedFile().getAbsolutePath();
-            kSarConfig.lastReadDirectory = fc.getSelectedFile();
-            if (! kSarConfig.lastReadDirectory.isDirectory() ) {
-                kSarConfig.lastReadDirectory = kSarConfig.lastReadDirectory.getParentFile();
-                kSarConfig.writeDefault();
-            }
+        
+        if (fc.showDialog(null, "Open") == JFileChooser.APPROVE_OPTION
+                && fc.getSelectedFile().exists()) {
+            return fc.getSelectedFile();
         }
-        return filename;
+        
+        return null;
     }
 
     public String get_action() {
@@ -57,6 +50,7 @@ public class FileRead  extends Thread {
             if (sarfilename == null) {
                 return;
             }
+            
             FileReader tmpfile = new FileReader(sarfilename);
             BufferedReader myfile = new BufferedReader(tmpfile);
             mysar.parse(myfile);
@@ -68,5 +62,5 @@ public class FileRead  extends Thread {
         }
     }
     kSar mysar = null;
-    public String sarfilename = null;
+    public File sarfilename = null;
 }

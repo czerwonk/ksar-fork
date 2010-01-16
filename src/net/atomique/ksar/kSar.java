@@ -14,8 +14,11 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import javax.swing.JOptionPane;
 import javax.swing.tree.DefaultMutableTreeNode;
 import org.jfree.data.time.Second;
@@ -27,15 +30,33 @@ import org.jfree.data.time.TimeSeries;
  */
 public class kSar {
 
+    private final static Map<Integer, kSarInstanceConfig> CONFIGURATIONS = new HashMap<Integer, kSarInstanceConfig>();
+    private final static AtomicInteger LAST_INSTANCE_ID = new AtomicInteger();
+    
+    private final int instanceId;
+    private final kSarInstanceConfig config;
+    
+    private kSar() {
+        this.instanceId = LAST_INSTANCE_ID.incrementAndGet();
+        this.config = new kSarInstanceConfig();
+        
+        CONFIGURATIONS.put(this.instanceId, config);
+    }
+    
     public kSar(String title) {
+        this();
+        
         if ( ! parse_mission(title)) {
             System.err.println("Cannot process input: " + title);
             return;
         }
+        
         do_mission(title);
     }
 
     public kSar(kSarDesktop hisdesktop, String title) {
+        this();
+        
         mydesktop = hisdesktop;
         if ( ! parse_mission(title)) {
             System.err.println("Cannot process input: " + title);
@@ -45,19 +66,28 @@ public class kSar {
         do_mission(title);
     }
 
+    public void do_fileread() {
+        this.do_fileread(null);
+    }
+    
     public void do_fileread(String filename) {
         resetInfo();
+        
         if (filename == null) {
-            launched_command = new FileRead(this);
-        } else {
-            launched_command = new FileRead(this, filename);
+            launched_command = new FileRead(this, this.config.getLastFile(), false);
+        } 
+        else {
+            launched_command = new FileRead(this, new File(filename), true);
         }
         reload_command = ((FileRead) launched_command).get_action();
         launched_command.start();
+        
+        this.config.setLastFile(((FileRead)launched_command).sarfilename);
     }
 
     public void do_sshread(String cmd) {
         resetInfo();
+        
         if (cmd == null) {
             launched_command = new SSHCommand(this, null);
         //mysar.reload_command=t.get_command();
@@ -67,17 +97,24 @@ public class kSar {
         reload_command = ((SSHCommand) launched_command).get_action();
         launched_command.start();
     }
-
+ 
+    public void do_localcommand() {
+        this.do_localcommand(null);
+    }
+    
     public void do_localcommand(String cmd) {
         resetInfo();
+        
         if (cmd == null) {
-            launched_command = new LocalCommand(this);
+            launched_command = new LocalCommand(this, this.config.getLastCommand(), false);
         //mysar.reload_command=t.get_command();
         } else {
-            launched_command = new LocalCommand(this, cmd);
+            launched_command = new LocalCommand(this, cmd, true);
         }
         reload_command = ((LocalCommand) launched_command).get_action();
         launched_command.start();
+        
+        this.config.setLastCommand(((LocalCommand)launched_command).command);
     }
 
     public void do_mission(String title) {

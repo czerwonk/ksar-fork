@@ -15,30 +15,20 @@ import javax.swing.JOptionPane;
  */
 public class LocalCommand extends Thread {
 
-    public LocalCommand(kSar hissar) {
+    public LocalCommand(kSar hissar, String hiscommand, boolean autoExecute) {
         mysar = hissar;
-        try {
-            String[] envvar;
-            envvar = new String[1];
-            envvar[0] = new String("LC_ALL=C");
-
+        
+        if (hiscommand != null && autoExecute) {
+            command = hiscommand;
+        }
+        else {   
             command = JOptionPane.showInputDialog("Enter local command ", "sar -A");
-            if (command == null) {
-                return;
-            }
-            Process p = Runtime.getRuntime().exec(command, envvar);
-            in = p.getInputStream();
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "There was a problem while running the command ", "Local error", JOptionPane.ERROR_MESSAGE);
-            in = null;
         }
 
-        return;
-    }
-
-    public LocalCommand(kSar hissar, String hiscommand) {
-        mysar = hissar;
-        command = hiscommand;
+        if (command == null) {
+            return;
+        }
+        
         try {
             String[] envvar;
             envvar = new String[1];
