@@ -18,7 +18,7 @@ import javax.swing.UIManager;
 
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
 public class kSarConfig {
 

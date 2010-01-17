@@ -40,6 +40,7 @@ import java.util.regex.Pattern;
 public class SSHCommand extends Thread {
 
     private static Pattern pattern = Pattern.compile("^([^@]+)+@([^:]+)(?:\\:(\\d{1,5}))?$");
+    private static String passphrase;
     
     private String host;
     private String user;
@@ -47,7 +48,6 @@ public class SSHCommand extends Thread {
     private String command;
     private String password;
     private boolean promptForData;
-    private static String passphrase;
     
     private final kSar mysar;
     private InputStream in = null;
@@ -103,7 +103,6 @@ public class SSHCommand extends Thread {
     
     private void connect() {
         num_try = 0;
-        String cnx = null;
 
         try {
             // start ssh
@@ -154,8 +153,7 @@ public class SSHCommand extends Thread {
                     return;
                 }
                 
-                cnx = (String)combo.getSelectedItem();
-                this.setServer(cnx);
+                this.setServer((String)combo.getSelectedItem());
             }
 
             // start session, with user host port
@@ -193,14 +191,11 @@ public class SSHCommand extends Thread {
             }
 
             // save the connection user/host for futurused
-            if (kSarConfig.sshconnectionmap == null || kSarConfig.sshconnectionmap.size() == 0) {
-                kSarConfig.sshconnectionmap.add(cnx);
+            String server = this.getServer();
+            
+            if (!kSarConfig.sshconnectionmap.contains(server)) {
+                kSarConfig.sshconnectionmap.add(server);
                 kSarConfig.writeDefault();
-            } else {
-                if ( ! kSarConfig.sshconnectionmap.contains(cnx)) {
-                    kSarConfig.sshconnectionmap.add(cnx);
-                    kSarConfig.writeDefault();
-                }
             }
 
             if (this.command == null || this.promptForData) {
@@ -251,14 +246,9 @@ public class SSHCommand extends Thread {
             }
 
             // keep the command for future use for the combo
-            if (kSarConfig.sshconnectioncmd == null || kSarConfig.sshconnectioncmd.size() == 0) {
+            if (!kSarConfig.sshconnectioncmd.contains(this.command)) {
                 kSarConfig.sshconnectioncmd.add(this.command);
                 kSarConfig.writeDefault();
-            } else {
-                if ( ! kSarConfig.sshconnectioncmd.contains(this.command) ) {
-                    kSarConfig.sshconnectioncmd.add(this.command);
-                    kSarConfig.writeDefault();
-                }
             }
         } catch (Exception e) {
             System.out.println(e);
@@ -371,6 +361,12 @@ public class SSHCommand extends Thread {
         }
 
         public boolean promptPassphrase(String message) {
+            if (passphrase != null 
+                    && !passphrase.equals("") 
+                    && num_try == 0) {
+                return true;
+            }
+            
             if (( ! mysar.mydesktop.unified_id && password == null) || num_try > 0) {
                 Object[] ob = {passphraseField};
                 int result = JOptionPane.showConfirmDialog(mysar.myUI, ob, message, JOptionPane.OK_CANCEL_OPTION);
