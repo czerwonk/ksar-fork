@@ -3,9 +3,9 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="res"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="lib/jfreechart-1.0.13/lib/jfreechart-1.0.13.jar"/>
 	<classpathentry kind="lib" path="lib/jsch-0.1.42.jar"/>
-	<classpathentry kind="lib" path="lib/jfreechart-1.0.13/lib/iText-2.1.5.jar"/>
-	<classpathentry kind="lib" path="lib/jfreechart-1.0.13/lib/jcommon-1.0.16.jar"/>
+	<classpathentry kind="lib" path="lib/jfreechart-1.0.13.jar"/>
+	<classpathentry kind="lib" path="lib/jcommon-1.0.16.jar"/>
+	<classpathentry kind="lib" path="lib/iText-2.1.5.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
