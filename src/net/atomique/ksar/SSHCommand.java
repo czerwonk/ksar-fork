@@ -16,7 +16,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -24,7 +23,6 @@ import java.util.Iterator;
 import java.util.Properties;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
-import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -49,6 +47,7 @@ public class SSHCommand extends Thread {
     private String command;
     private String password;
     private boolean promptForData;
+    private static String passphrase;
     
     private final kSar mysar;
     private InputStream in = null;
@@ -361,16 +360,13 @@ public class SSHCommand extends Thread {
         }
         //String passwd;
         JTextField passwordField = (JTextField) new JPasswordField(20);
-        String passphrase;
         JTextField passphraseField = (JTextField) new JPasswordField(20);
 
         public String getPassphrase() {
             if (mysar.mydesktop.unified_id) {
                 return mysar.mydesktop.unified_pass;
             }
-            if (password != null) {
-                return password;
-            }
+
             return passphrase;
         }
 
