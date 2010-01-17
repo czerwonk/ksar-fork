@@ -31,7 +31,7 @@ import org.jfree.data.time.TimeSeries;
  */
 public class kSar {
 
-    private final static int TIMER_INTERVAL = 60000;
+    private final static int TIMER_INTERVAL = 300000;
     
     private final kSarInstanceConfig config;
     private final Timer timer;
