@@ -12,5 +12,9 @@
             <zipfileset excludes="META-INF/*.SF" src="lib/iText-2.1.5.jar"/>
             <zipfileset excludes="META-INF/*.SF" src="lib/jcommon-1.0.16.jar"/>
         </jar>
+    	<signjar jar="target/ksar.jar"
+    	         alias="Daniel Czerwonk"
+    		     keystore="${sign.keypath}"
+    		     storepass="${sign.pass}" />
     </target>
 </project>
