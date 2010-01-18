@@ -104,7 +104,10 @@ public class kSarConfig {
             for (int i=0; i <tmp.length ; i++) {
                 String tmpstr = tmp[i];
                 String [] temp = tmpstr.split("∞");
-                shortcut_window_list.put(temp[0], temp[1]);
+                
+                if (temp.length == 2) {
+                	shortcut_window_list.put(temp[0], temp[1]);                	
+                }
             }
         }
         // known host
