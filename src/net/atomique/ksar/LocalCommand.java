@@ -13,6 +13,7 @@ import javax.swing.JOptionPane;
  *
  * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
+@Deprecated
 public class LocalCommand extends Thread {
 
     private final kSar mysar;

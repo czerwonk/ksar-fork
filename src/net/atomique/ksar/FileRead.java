@@ -13,6 +13,7 @@ import javax.swing.JFileChooser;
  *
  * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
+@Deprecated
 public class FileRead  extends Thread {
 
     private final kSar mysar;

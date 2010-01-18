@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
  *
  * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
+@Deprecated
 public class SSHCommand extends Thread {
 
     private static Pattern pattern = Pattern.compile("^([^@]+)+@([^:]+)(?:\\:(\\d{1,5}))?$");
@@ -118,9 +119,6 @@ public class SSHCommand extends Thread {
                 }
             }
 
-            // get user home
-            String userhome = (String) systemprops.get("user.home") + (String) systemprops.get("file.separator");
-
             if (this.user == null 
                     || this.host == null 
                     || this.promptForData) {
@@ -166,6 +164,7 @@ public class SSHCommand extends Thread {
             }
             
             // load known host, if exist
+            String userhome = (String) systemprops.get("user.home") + (String) systemprops.get("file.separator");
             if (new File(userhome + ".ssh" + (String) systemprops.get("file.separator") + "known_hosts").exists()) {
                 jsch.setKnownHosts(userhome + ".ssh" + (String) systemprops.get("file.separator") + "known_hosts");
             }
