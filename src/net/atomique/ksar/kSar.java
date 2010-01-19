@@ -551,7 +551,7 @@ public class kSar {
         }
     }
     
-    public void parse(BufferedReader br) throws IOException {
+    private void parse(BufferedReader br) throws IOException {
         int parserreturn = 0;
         String thisLine;
         StringTokenizer matcher;
