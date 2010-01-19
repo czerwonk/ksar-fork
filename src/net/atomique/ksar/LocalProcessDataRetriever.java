@@ -6,6 +6,10 @@ import java.io.Reader;
 
 import javax.swing.JOptionPane;
 
+
+/**
+ * @author Daniel Czerwonk <d.czerwonk@googlemail.com>
+ */
 public class LocalProcessDataRetriever implements IDataRetriever {
 
 	private String command;

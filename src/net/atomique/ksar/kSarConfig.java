@@ -11,6 +11,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import javax.swing.JOptionPane;
@@ -514,11 +516,11 @@ public class kSarConfig {
     static public File lastReadDirectory;
     static public File lastExportDirectory;
     /* ssh and command ligne */
-    static public ArrayList<String> sshconnectionmap;
-    static public ArrayList<String> sshconnectioncmd;
-    static public HashMap<String,String> shortcut_window_list;
-    static public ArrayList<String> startup_windows_list;
-    static public HashMap<String,String> association_list;
+    static public List<String> sshconnectionmap;
+    static public List<String> sshconnectioncmd;
+    static public Map<String,String> shortcut_window_list;
+    static public List<String> startup_windows_list;
+    static public Map<String,String> association_list;
     static public boolean ssh_stricthostchecking;
     //
     static public HashMap<String,String> shortcut_window_processlist;

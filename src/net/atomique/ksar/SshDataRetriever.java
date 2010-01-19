@@ -18,11 +18,20 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Logger;
 import com.jcraft.jsch.Session;
+import com.jcraft.jsch.UIKeyboardInteractive;
+import com.jcraft.jsch.UserInfo;
 
+
+/**
+ * @author Daniel Czerwonk <d.czerwonk@googlemail.com>
+ */
 public class SshDataRetriever implements IDataRetriever {
 
 	private static Pattern pattern = Pattern.compile("^([^@]+)+@([^:]+)(?:\\:(\\d{1,5}))?$");
+	private static final int MAX_READY_TIMEOUT = 10;
+	private static String passphrase;
 	
     private String host;
     private String user;
@@ -30,11 +39,16 @@ public class SshDataRetriever implements IDataRetriever {
     private String command;
     private String password;
     private final boolean promptForData;
+	private final IMessageCreator messageCreator;
+    
+    
+    static {
+    	JSch.setLogger(new DefaultLogger());    	
+    }
 	
-	
-	private SshDataRetriever(boolean promptForData) {
+	private SshDataRetriever(boolean promptForData, IMessageCreator messageCreator) {
 		this.promptForData = promptForData;
-		JSch.setLogger(null);
+		this.messageCreator = messageCreator;
 	}
 	
     /**
@@ -42,8 +56,8 @@ public class SshDataRetriever implements IDataRetriever {
      * @param suggestedServer
      * @param suggestedCommand
      */
-	public SshDataRetriever(String suggestedServer, String suggestedCommand) {
-		this(true);
+	public SshDataRetriever(String suggestedServer, String suggestedCommand, IMessageCreator messageCreator) {
+		this(true, messageCreator);
 		
         this.setServer(suggestedServer);
         this.command = suggestedCommand;
@@ -53,8 +67,8 @@ public class SshDataRetriever implements IDataRetriever {
 	 * Creates an instance of SshDataRetriever
 	 * @param redoCommand
 	 */
-	public SshDataRetriever(String redoCommand) {
-		this(false);
+	public SshDataRetriever(String redoCommand, IMessageCreator messageCreator) {
+		this(false, messageCreator);
 
 		this.parseRedoCommand(command);
 	}
@@ -76,9 +90,13 @@ public class SshDataRetriever implements IDataRetriever {
     }
     
     public String getServer() {
+    	return this.getServer(true);
+    }
+    
+    private String getServer(boolean includePassword) {
         return String.format("%s%s@%s%s", 
                              ((this.user != null) ? this.user : "user.name"),
-                             ((this.password != null) ? ":" + this.password : ""),
+                             ((includePassword && this.password != null) ? ":" + this.password : ""),
                              ((this.host != null) ? this.host : "localhost"),
                              ((this.port != 22) ? ":" + Integer.toString(this.port) : ""));
     }
@@ -150,7 +168,7 @@ public class SshDataRetriever implements IDataRetriever {
         }
 	}
 	
-	private Reader readToString(InputStream inputStream) throws IOException {
+	private Reader readToString(InputStream inputStream) throws IOException, DataRetrievingFailedException {
 		Reader reader = new InputStreamReader(inputStream);
 		BufferedReader bufferedReader = new BufferedReader(reader);
 	
@@ -158,6 +176,23 @@ public class SshDataRetriever implements IDataRetriever {
 		BufferedWriter bufferedWriter = new BufferedWriter(writer);
 	
 		try {
+			int secondsWaited = 0;
+			
+			while (!bufferedReader.ready()) {
+				if (secondsWaited >= MAX_READY_TIMEOUT) 
+				{
+					throw new DataRetrievingFailedException("Could not read from stream.");
+				}
+				
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// nothing to do here
+				}
+				
+				secondsWaited++;
+			}
+			
 			String line = null;
 			
 			while ((line = bufferedReader.readLine()) != null) {
@@ -189,8 +224,7 @@ public class SshDataRetriever implements IDataRetriever {
 	}
 
 	private void requestCommand() {
-		// TODO: implement me!
-		throw new NotImplementedException();
+		this.command = this.messageCreator.showTextInputWithSuggestionDialog("Command", "Please enter your command.", kSarConfig.sshconnectioncmd);
 	}
 	
 	private void addCommandToLastUsed() {
@@ -234,7 +268,9 @@ public class SshDataRetriever implements IDataRetriever {
 				this.setKnownHostFile(jsch);
 			}
 			
-			session.setUserInfo(null);	// TODO: user info
+			
+			SshUserInfo userInfo = new SshUserInfo(); 
+			session.setUserInfo(userInfo);
 			this.setPasswordIfKnown(session);
 			
 			session.connect();
@@ -248,8 +284,7 @@ public class SshDataRetriever implements IDataRetriever {
 	}
 
 	private void requestConnection() {
-		// TODO: implement me!
-		throw new NotImplementedException();
+		this.messageCreator.showTextInputWithSuggestionDialog("Server connection", "Please enter your connection data (user@host:port).", kSarConfig.sshconnectionmap);
 	}
 	
 	private void setPasswordIfKnown(Session session) {
@@ -274,7 +309,7 @@ public class SshDataRetriever implements IDataRetriever {
 	}
 	
 	private void addServerToLastUsedList() {
-		String server = this.getServer();
+		String server = this.getServer(false);
 		
 		if (!kSarConfig.sshconnectionmap.contains(server)) {
 			kSarConfig.sshconnectionmap.add(server);
@@ -284,6 +319,108 @@ public class SshDataRetriever implements IDataRetriever {
 
 	@Override
 	public String getRedoCommand() {
-		return ("ssh://" + this.getServer() + "/" + this.command);
+		return String.format("ssh://%s/%s", this.getServer(), this.command);
+	}
+	
+	
+	private static class DefaultLogger implements Logger {
+
+		@Override
+		public boolean isEnabled(int arg0) {
+			return true;
+		}
+
+		@Override
+		public void log(int logLevel, String message) {
+			switch (logLevel) {
+				case Logger.FATAL:
+				case Logger.ERROR:
+					System.err.println(message);
+					break;
+					
+				default:
+					System.out.println(message);
+			}
+		}
+	}
+	
+	private class SshUserInfo implements UserInfo, UIKeyboardInteractive {
+
+		private int tryCountPassword = 0;
+		private int tryCountPassphrase = 0;
+
+
+		@Override
+		public String getPassphrase() {
+			return passphrase;
+		}
+
+		@Override
+		public String getPassword() {
+			return password;
+		}
+
+		@Override
+		public boolean promptPassphrase(String message) {
+			try {
+				if (passphrase != null 
+						&& this.tryCountPassphrase == 0) {
+					return true;
+				}
+				
+				String enteredPassphrase = messageCreator.showTextInputDialog("Passphrase", message);
+				
+				if (enteredPassphrase != null) {
+					passphrase = enteredPassphrase;
+					return true;
+				}
+				
+				return false;				
+			}
+			finally {
+				this.tryCountPassphrase++;
+			}
+		}
+
+		@Override
+		public boolean promptPassword(String message) {
+			try {
+				if (password != null 
+						&& this.tryCountPassword == 0) {
+					return true;
+				}
+				
+				String enteredPassword = messageCreator.showTextInputDialog("Password", message);
+				
+				if (enteredPassword != null) {
+					password = enteredPassword;
+					return true;
+				}
+				
+				return false;
+			}
+			finally {
+				this.tryCountPassword++;
+			}
+		}
+
+		@Override
+		public boolean promptYesNo(String message) {
+			return messageCreator.showConfirmationDialog("Confirmation", message);
+		}
+
+		@Override
+		public void showMessage(String message) {
+			messageCreator.showInfoMessage("Info", message);
+		}
+
+		@Override
+		public String[] promptKeyboardInteractive(String destination, String name, 
+											      String instruction, String[] prompt, 
+											      boolean[] echo) {
+			// TODO: implement me!
+			
+			return null;
+		}
 	}
 }
