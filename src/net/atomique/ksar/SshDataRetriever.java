@@ -18,7 +18,6 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Logger;
 import com.jcraft.jsch.Session;
-import com.jcraft.jsch.UIKeyboardInteractive;
 import com.jcraft.jsch.UserInfo;
 
 
@@ -130,6 +129,9 @@ public class SshDataRetriever implements IDataRetriever {
         return this.command;
     }
 
+	/* (non-Javadoc)
+	 * @see net.atomique.ksar.IDataRetriever#getData()
+	 */
 	@Override
 	public Reader getData() throws DataRetrievingFailedException {
 		Session session = connect();
@@ -206,7 +208,7 @@ public class SshDataRetriever implements IDataRetriever {
 					bufferedReader.close();					
 				}
 				catch (IOException ex) {
-					// this exception would hide the exception thrown in outer try
+					// this exception would hide the exception thrown in outer try block
 				}
 			}
 			
@@ -222,7 +224,9 @@ public class SshDataRetriever implements IDataRetriever {
 	}
 
 	private void requestCommand() {
-		this.command = this.messageCreator.showTextInputWithSuggestionDialog("Command", "Please enter your command.", kSarConfig.sshconnectioncmd);
+		this.command = this.messageCreator.showTextInputWithSuggestionDialog("SSH command", 
+		                                                                     kSarConfig.sshconnectioncmd, 
+		                                                                     this.command);
 	}
 	
 	private void addCommandToLastUsed() {
@@ -281,8 +285,10 @@ public class SshDataRetriever implements IDataRetriever {
 		}
 	}
 
-	private void requestConnection() {
-		this.messageCreator.showTextInputWithSuggestionDialog("Server connection", "Please enter your connection data (user@host:port).", kSarConfig.sshconnectionmap);
+	private void requestConnection() throws DataRetrievingFailedException {
+		String connection = this.messageCreator.showTextInputWithSuggestionDialog("Server connection (user@host[:port])", 
+		                                                                          kSarConfig.sshconnectionmap, this.getServer(false));
+		this.setServer(connection);
 	}
 	
 	private void setPasswordIfKnown(Session session) {
@@ -315,6 +321,9 @@ public class SshDataRetriever implements IDataRetriever {
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see net.atomique.ksar.IDataRetriever#getRedoCommand()
+	 */
 	@Override
 	public String getRedoCommand() {
 		return String.format("ssh://%s/%s", this.getServer(), this.command);
@@ -342,7 +351,7 @@ public class SshDataRetriever implements IDataRetriever {
 		}
 	}
 	
-	private class SshUserInfo implements UserInfo, UIKeyboardInteractive {
+	private class SshUserInfo implements UserInfo {
 
 		private int tryCountPassword = 0;
 		private int tryCountPassphrase = 0;
@@ -410,15 +419,6 @@ public class SshDataRetriever implements IDataRetriever {
 		@Override
 		public void showMessage(String message) {
 			messageCreator.showInfoMessage("Info", message);
-		}
-
-		@Override
-		public String[] promptKeyboardInteractive(String destination, String name, 
-											      String instruction, String[] prompt, 
-											      boolean[] echo) {
-			// TODO: implement me!
-			
-			return null;
 		}
 	}
 }

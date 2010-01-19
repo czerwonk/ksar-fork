@@ -10,6 +10,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -27,7 +28,7 @@ import org.jfree.data.time.TimeSeries;
 
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
 public class kSar {
 
@@ -36,10 +37,13 @@ public class kSar {
     private final kSarInstanceConfig config;
     private final Timer timer;
     private String selectionPath;
+    private final IMessageCreator messageCreator;
+    
     
     private kSar() {
         this.config = new kSarInstanceConfig();
-
+        this.messageCreator = new JOptionPaneMessageCreator(myUI);
+        
         this.timer = new Timer();
         this.timer.schedule(new TimerTask() {
 
@@ -69,69 +73,83 @@ public class kSar {
         this();
         
         mydesktop = hisdesktop;
-        if ( ! parse_mission(title)) {
+        
+        if (!parse_mission(title)) {
             System.err.println("Cannot process input: " + title);
             return;
         }
+        
         addGUI(title);
         do_mission(title);
     }
     
-    public void do_fileread(String filename) {
-        resetInfo();
+    private boolean updateData(IDataRetriever dataRetriever) {
+        this.resetInfo();
         
-        FileRead command = null;
+        BufferedReader bufferedReader = null;
         
-        if (filename == null) {
-            command = new FileRead(this, this.config.getLastFile(), true);
-        } 
-        else {
-            command = new FileRead(this, new File(filename), false);
+        try {
+            Reader reader = dataRetriever.getData();
+            
+            if (reader == null) {
+                this.messageCreator.showErrorMessage("Error", "No data found.");
+            }
+            
+            bufferedReader = new BufferedReader(reader);
+            this.parse(bufferedReader);
+            
+            this.reload_command = dataRetriever.getRedoCommand();
+            
+            return true;
+        }
+        catch (DataRetrievingFailedException ex) {
+            this.messageCreator.showErrorMessage("Error", ex.getMessage());
+        }
+        catch (IOException ex) {
+            this.messageCreator.showErrorMessage("Error", "Error while parsing data.");
+        }
+        finally {
+            if (bufferedReader != null) {
+                try {
+                    bufferedReader.close();
+                }
+                catch (IOException ex) {
+                    // exception could hide any exception thrown in outer try block
+                }
+            }
         }
         
-        launched_command = command;
-        reload_command = command.get_action();
-        launched_command.start();
+        return false;
+    }
+    
+    public void do_fileread(String filename) {
+        FileSystemDataRetriever dataRetriever = ((filename == null) ? new FileSystemDataRetriever(this.config.getLastFile(), true)
+                                                                    : new FileSystemDataRetriever(new File(filename), false));
         
-        this.config.setLastFile(command.getSarFile());
+        if (this.updateData(dataRetriever)) {
+            this.config.setLastFile(dataRetriever.getSarFile());
+        }
     }
 
     public void do_sshread(String cmd) {
-        resetInfo();
+        SshDataRetriever dataRetriever = ((cmd == null) ? new SshDataRetriever(this.config.getLastSshServer(), 
+                                                                               this.config.getLastSshCommand(), 
+                                                                               this.messageCreator)
+                                                        : new SshDataRetriever(cmd, this.messageCreator));
         
-        SSHCommand command = null;
-        
-        if (cmd == null) {
-            command = new SSHCommand(this, this.config.getLastSshServer(), this.config.getLastSshCommand());
-        } 
-        else {
-            command = new SSHCommand(this, cmd);
+        if (updateData(dataRetriever)) {
+            this.config.setLastSshCommand(dataRetriever.getCommand());
+            this.config.setLastSshServer(dataRetriever.getServer());
         }
-        
-        launched_command = command;
-        reload_command = command.get_action();
-        launched_command.start();
-        
-        this.config.setLastSshCommand(command.getCommand());
-        this.config.setLastSshServer(command.getServer());
     }
     
     public void do_localcommand(String cmd) {
-        resetInfo();
+        LocalProcessDataRetriever dataRetriever = ((cmd == null) ? new LocalProcessDataRetriever(this.config.getLastCommand(), true)
+                                                                 : new LocalProcessDataRetriever(cmd, false));
         
-        LocalCommand command = null;
-        
-        if (cmd == null) {
-            command = new LocalCommand(this, this.config.getLastCommand(), true);
-        } else {
-            command = new LocalCommand(this, cmd, false);
+        if (this.updateData(dataRetriever)) {
+            this.config.setLastCommand(dataRetriever.getCommand());
         }
-        
-        launched_command = command;
-        reload_command = command.get_action();
-        launched_command.start();
-        
-        this.config.setLastCommand(command.getCommand());
     }
 
     public void do_mission(String title) {
@@ -487,7 +505,6 @@ public class kSar {
         datefound.clear();
         startofgraph = null;
         endofgraph = null;
-        command_interrupted = false;
         isparsing = false;
         myOS = null;
         lastever = new Second(0, 0, 0, 1, 1, 1970);
@@ -495,7 +512,6 @@ public class kSar {
         solarispagesize = -1;
         othergraphlist.clear();
         // reset parser
-        command_interrupted = false;
         sarParsersolaris = null;
         sarParserlinux = null;
         sarParserAix = null;
@@ -535,7 +551,7 @@ public class kSar {
         }
     }
     
-    public void parse(BufferedReader br) {
+    public void parse(BufferedReader br) throws IOException {
         int parserreturn = 0;
         String thisLine;
         StringTokenizer matcher;
@@ -549,297 +565,292 @@ public class kSar {
             changemenu(false);
         }
 
-        try {
-            tell_parsing(true);
-            start = System.currentTimeMillis();
-            while ( (thisLine = br.readLine()) != null && ! command_interrupted) {
-                num_lines++;
-                //System.out.println("--:" + thisLine);
-                if ( tmpfile_out != null ) {
-                    tmpfile_out.write(thisLine+"\n");
-                }
-                //parsedfile.append(thisLine);
-                // skip empty line
-                if (thisLine.length() == 0) {
-                    continue;
-                }
-                matcher = new StringTokenizer(thisLine);
-                if (matcher.countTokens() == 0) {
-                    continue;
-                }
-                // ok let's check OS version by getting first string
-                first = matcher.nextToken();
+        tell_parsing(true);
+        start = System.currentTimeMillis();
+        while ((thisLine = br.readLine()) != null) {
+            num_lines++;
+            //System.out.println("--:" + thisLine);
+            if ( tmpfile_out != null ) {
+                tmpfile_out.write(thisLine+"\n");
+            }
+            //parsedfile.append(thisLine);
+            // skip empty line
+            if (thisLine.length() == 0) {
+                continue;
+            }
+            matcher = new StringTokenizer(thisLine);
+            if (matcher.countTokens() == 0) {
+                continue;
+            }
+            // ok let's check OS version by getting first string
+            first = matcher.nextToken();
 
-                // SunOS host 5.9 Generic_118558-28 sun4u    09/01/2006
-                if ( "SunOS".equals(first) ) {
-                    sarType = 1;
-                    if (myOS == null) {
-                        myOS = new OSInfo("SunOS", "automatically");
-                    }
-                    hostName = matcher.nextToken();
-                    myOS.setHostname(hostName);
-                    osVersion = matcher.nextToken();
-                    myOS.setOSversion(osVersion);
-                    kernelVersion = matcher.nextToken();
-                    myOS.setKernel(kernelVersion);
-                    cpuType = matcher.nextToken();
-                    myOS.setCpuType(cpuType);
-                    sarDate = matcher.nextToken();
-                    myOS.setDate(sarDate);
-                    String[] dateSplit = sarDate.split("/");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[1]);
-                        month = Integer.parseInt(dateSplit[0]);
-                        year = Integer.parseInt(dateSplit[2]);
-                        if (year < 100) { // solaris 8 show date on two digit
-                            year += 2000;
-                        }
-                    }
-                    setPageSize();
-                    //parseAlternatediskname();
-                    continue;
+            // SunOS host 5.9 Generic_118558-28 sun4u    09/01/2006
+            if ( "SunOS".equals(first) ) {
+                sarType = 1;
+                if (myOS == null) {
+                    myOS = new OSInfo("SunOS", "automatically");
                 }
-                // Linux 2.4.21-32.ELsmp (host)       09/09/06
-                if ( "Linux".equals(first) ) {
-                    String tmpstr;
-                    sarType = 2;
-                    if (myOS == null) {
-                        myOS = new OSInfo("Linux", "automatically");
+                hostName = matcher.nextToken();
+                myOS.setHostname(hostName);
+                osVersion = matcher.nextToken();
+                myOS.setOSversion(osVersion);
+                kernelVersion = matcher.nextToken();
+                myOS.setKernel(kernelVersion);
+                cpuType = matcher.nextToken();
+                myOS.setCpuType(cpuType);
+                sarDate = matcher.nextToken();
+                myOS.setDate(sarDate);
+                String[] dateSplit = sarDate.split("/");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[1]);
+                    month = Integer.parseInt(dateSplit[0]);
+                    year = Integer.parseInt(dateSplit[2]);
+                    if (year < 100) { // solaris 8 show date on two digit
+                        year += 2000;
                     }
-                    kernelVersion = matcher.nextToken();
-                    myOS.setKernel(kernelVersion);
-                    tmpstr = matcher.nextToken();
-                    hostName = tmpstr.substring(1, tmpstr.length() - 1);
-                    myOS.setHostname(hostName);
-                    sarDate = matcher.nextToken();
-                    myOS.setDate(sarDate);
-                    String[] dateSplit = sarDate.split("/");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[1]);
-                        month = Integer.parseInt(dateSplit[0]);
-                        year = Integer.parseInt(dateSplit[2]);
-                        if (year < 100) { // solaris 8 show date on two digit
-                            year += 2000;
-                        }
-                    }
-                    dateSplit = sarDate.split("-");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[2]);
-                        month = Integer.parseInt(dateSplit[1]);
-                        year = Integer.parseInt(dateSplit[0]);
-                    }
-                    solarispagesize = 0;
-                    parseAlternatediskname();
-                    continue;
                 }
-                // AIX rsora1 3 4 0006488F4C00    12/18/06
-                if ( "AIX".equals(first) ) {
-                    String tmpstr;
-                    sarType = 3;
-                    if (myOS == null) {
-                        myOS = new OSInfo("AIX", "automatically");
-                    }
-                    hostName = matcher.nextToken();
-                    myOS.setHostname(hostName);
-                    tmpstr = matcher.nextToken();
-                    osVersion = new String(matcher.nextToken() + "." + tmpstr);
-                    myOS.setOSversion(osVersion);
-                    tmpstr = matcher.nextToken();
-                    myOS.setMacAddress(tmpstr);
-                    sarDate = matcher.nextToken();
-                    myOS.setDate(sarDate);
-                    String[] dateSplit = sarDate.split("/");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[1]);
-                        month = Integer.parseInt(dateSplit[0]);
-                        year = Integer.parseInt(dateSplit[2]);
-                        if (year < 100) { // solaris 8 show date on two digit
-                            year += 2000;
-                        }
-                    }
-                    parseAlternatediskname();
-                    solarispagesize = 0;
-                    continue;
+                setPageSize();
+                //parseAlternatediskname();
+                continue;
+            }
+            // Linux 2.4.21-32.ELsmp (host)       09/09/06
+            if ( "Linux".equals(first) ) {
+                String tmpstr;
+                sarType = 2;
+                if (myOS == null) {
+                    myOS = new OSInfo("Linux", "automatically");
                 }
-                //
-                //
-                if ("HP-UX".equals(first)) {
-                    sarType = 4;
-                    if (myOS == null) {
-                        myOS = new OSInfo("HP-UX", "automatically");
+                kernelVersion = matcher.nextToken();
+                myOS.setKernel(kernelVersion);
+                tmpstr = matcher.nextToken();
+                hostName = tmpstr.substring(1, tmpstr.length() - 1);
+                myOS.setHostname(hostName);
+                sarDate = matcher.nextToken();
+                myOS.setDate(sarDate);
+                String[] dateSplit = sarDate.split("/");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[1]);
+                    month = Integer.parseInt(dateSplit[0]);
+                    year = Integer.parseInt(dateSplit[2]);
+                    if (year < 100) { // solaris 8 show date on two digit
+                        year += 2000;
                     }
-                    hostName = matcher.nextToken();
-                    myOS.setHostname(hostName);
-                    osVersion = matcher.nextToken();
-                    myOS.setOSversion(osVersion);
-                    kernelVersion = matcher.nextToken();
-                    myOS.setKernel(kernelVersion);
-                    cpuType = matcher.nextToken();
-                    myOS.setCpuType(cpuType);
-                    sarDate = matcher.nextToken();
-                    myOS.setDate(sarDate);
-                    String[] dateSplit = sarDate.split("/");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[1]);
-                        month = Integer.parseInt(dateSplit[0]);
-                        year = Integer.parseInt(dateSplit[2]);
-                        if (year < 100) { // solaris 8 show date on two digit
-                            year += 2000;
-                        }
-                    }
-                    parseAlternatediskname();
-                    continue;
                 }
-                //
-                //
-                if ("Darwin".equals(first)) {
-                    sarType = 5;
-                    if (myOS == null) {
-                        myOS = new OSInfo("Mac", "automatically");
-                    }
-                    hostName = matcher.nextToken();
-                    myOS.setHostname(hostName);
-                    osVersion = matcher.nextToken();
-                    myOS.setOSversion(osVersion);
-                    cpuType = matcher.nextToken();
-                    myOS.setCpuType(cpuType);
-                    sarDate = matcher.nextToken();
-                    myOS.setDate(sarDate);
-                    String[] dateSplit = sarDate.split("/");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[1]);
-                        month = Integer.parseInt(dateSplit[0]);
-                        year = Integer.parseInt(dateSplit[2]);
-                        if (year < 100) { // solaris 8 show date on two digit
-                            year += 2000;
-                        }
-                    }
-                    parseAlternatediskname();
-                    continue;
+                dateSplit = sarDate.split("-");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[2]);
+                    month = Integer.parseInt(dateSplit[1]);
+                    year = Integer.parseInt(dateSplit[0]);
                 }
-                // SunOS host 5.9 Generic_118558-28 sun4u    09/01/2006
-                if ( "Esar".equals(first) ) {
-                    sarType = 6;
-                    if (myOS == null) {
-                        myOS = new OSInfo("Esar SunOS", "automatically");
+                solarispagesize = 0;
+                parseAlternatediskname();
+                continue;
+            }
+            // AIX rsora1 3 4 0006488F4C00    12/18/06
+            if ( "AIX".equals(first) ) {
+                String tmpstr;
+                sarType = 3;
+                if (myOS == null) {
+                    myOS = new OSInfo("AIX", "automatically");
+                }
+                hostName = matcher.nextToken();
+                myOS.setHostname(hostName);
+                tmpstr = matcher.nextToken();
+                osVersion = new String(matcher.nextToken() + "." + tmpstr);
+                myOS.setOSversion(osVersion);
+                tmpstr = matcher.nextToken();
+                myOS.setMacAddress(tmpstr);
+                sarDate = matcher.nextToken();
+                myOS.setDate(sarDate);
+                String[] dateSplit = sarDate.split("/");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[1]);
+                    month = Integer.parseInt(dateSplit[0]);
+                    year = Integer.parseInt(dateSplit[2]);
+                    if (year < 100) { // solaris 8 show date on two digit
+                        year += 2000;
                     }
-                    // skip sunos
-                    matcher.nextToken();
-                    hostName = matcher.nextToken();
-                    myOS.setHostname(hostName);
-                    osVersion = matcher.nextToken();
-                    myOS.setOSversion(osVersion);
-                    kernelVersion = matcher.nextToken();
-                    myOS.setKernel(kernelVersion);
-                    cpuType = matcher.nextToken();
-                    myOS.setCpuType(cpuType);
-                    sarDate = matcher.nextToken();
-                    myOS.setDate(sarDate);
-                    String[] dateSplit = sarDate.split("/");
-                    if (dateSplit.length == 3) {
-                        day = Integer.parseInt(dateSplit[1]);
-                        month = Integer.parseInt(dateSplit[0]);
-                        year = Integer.parseInt(dateSplit[2]);
-                        if (year < 100) { // solaris 8 show date on two digit
-                            year += 2000;
-                        }
+                }
+                parseAlternatediskname();
+                solarispagesize = 0;
+                continue;
+            }
+            //
+            //
+            if ("HP-UX".equals(first)) {
+                sarType = 4;
+                if (myOS == null) {
+                    myOS = new OSInfo("HP-UX", "automatically");
+                }
+                hostName = matcher.nextToken();
+                myOS.setHostname(hostName);
+                osVersion = matcher.nextToken();
+                myOS.setOSversion(osVersion);
+                kernelVersion = matcher.nextToken();
+                myOS.setKernel(kernelVersion);
+                cpuType = matcher.nextToken();
+                myOS.setCpuType(cpuType);
+                sarDate = matcher.nextToken();
+                myOS.setDate(sarDate);
+                String[] dateSplit = sarDate.split("/");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[1]);
+                    month = Integer.parseInt(dateSplit[0]);
+                    year = Integer.parseInt(dateSplit[2]);
+                    if (year < 100) { // solaris 8 show date on two digit
+                        year += 2000;
                     }
-                    continue;
                 }
-                //
-                //
-                if (first.equals("Average")) {
-                    underaverage = 1;
-                    continue;
+                parseAlternatediskname();
+                continue;
+            }
+            //
+            //
+            if ("Darwin".equals(first)) {
+                sarType = 5;
+                if (myOS == null) {
+                    myOS = new OSInfo("Mac", "automatically");
                 }
-                // match the unix restart message and skip this line
-                if (thisLine.indexOf("unix restarts") >= 0 || thisLine.indexOf("LINUX RESTART") >= 0 || thisLine.indexOf(" unix restared") >= 0) {
-                    underaverage = 0;
-                    continue;
+                hostName = matcher.nextToken();
+                myOS.setHostname(hostName);
+                osVersion = matcher.nextToken();
+                myOS.setOSversion(osVersion);
+                cpuType = matcher.nextToken();
+                myOS.setCpuType(cpuType);
+                sarDate = matcher.nextToken();
+                myOS.setDate(sarDate);
+                String[] dateSplit = sarDate.split("/");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[1]);
+                    month = Integer.parseInt(dateSplit[0]);
+                    year = Integer.parseInt(dateSplit[2]);
+                    if (year < 100) { // solaris 8 show date on two digit
+                        year += 2000;
+                    }
                 }
+                parseAlternatediskname();
+                continue;
+            }
+            // SunOS host 5.9 Generic_118558-28 sun4u    09/01/2006
+            if ( "Esar".equals(first) ) {
+                sarType = 6;
+                if (myOS == null) {
+                    myOS = new OSInfo("Esar SunOS", "automatically");
+                }
+                // skip sunos
+                matcher.nextToken();
+                hostName = matcher.nextToken();
+                myOS.setHostname(hostName);
+                osVersion = matcher.nextToken();
+                myOS.setOSversion(osVersion);
+                kernelVersion = matcher.nextToken();
+                myOS.setKernel(kernelVersion);
+                cpuType = matcher.nextToken();
+                myOS.setCpuType(cpuType);
+                sarDate = matcher.nextToken();
+                myOS.setDate(sarDate);
+                String[] dateSplit = sarDate.split("/");
+                if (dateSplit.length == 3) {
+                    day = Integer.parseInt(dateSplit[1]);
+                    month = Integer.parseInt(dateSplit[0]);
+                    year = Integer.parseInt(dateSplit[2]);
+                    if (year < 100) { // solaris 8 show date on two digit
+                        year += 2000;
+                    }
+                }
+                continue;
+            }
+            //
+            //
+            if (first.equals("Average")) {
+                underaverage = 1;
+                continue;
+            }
+            // match the unix restart message and skip this line
+            if (thisLine.indexOf("unix restarts") >= 0 || thisLine.indexOf("LINUX RESTART") >= 0 || thisLine.indexOf(" unix restared") >= 0) {
+                underaverage = 0;
+                continue;
+            }
 
-                // match the System Configuration line on AIX
-                if (thisLine.indexOf("System Configuration") >= 0) {
-                    continue;
-                }
+            // match the System Configuration line on AIX
+            if (thisLine.indexOf("System Configuration") >= 0) {
+                continue;
+            }
 
-                if (thisLine.indexOf("State change") >= 0) {
-                    underaverage = 0;
-                    continue;
-                }
+            if (thisLine.indexOf("State change") >= 0) {
+                underaverage = 0;
+                continue;
+            }
 
-                //
-                // Getting here without sarType leads to error
-                //
-                if ( sarType == 0 ) {
-                    if (myUI == null) {
-                        // NO GUI print error and exit
-                        System.err.println(parser_err1);
-                        System.exit(2);
-                    }
-                    break;
+            //
+            // Getting here without sarType leads to error
+            //
+            if ( sarType == 0 ) {
+                if (myUI == null) {
+                    // NO GUI print error and exit
+                    System.err.println(parser_err1);
+                    System.exit(2);
                 }
-                
-                if (myUI != null) {
-                    if ((num_lines % 30) == 1) {
-                        if (!myUI.getTitle().equals(hostName + " : " + startofgraph + " -> " + endofgraph)) {
-                            myUI.setTitle(hostName + " : " + startofgraph + " -> " + endofgraph);
-                        }
+                break;
+            }
+            
+            if (myUI != null) {
+                if ((num_lines % 30) == 1) {
+                    if (!myUI.getTitle().equals(hostName + " : " + startofgraph + " -> " + endofgraph)) {
+                        myUI.setTitle(hostName + " : " + startofgraph + " -> " + endofgraph);
                     }
-                }
-                
-                //
-                // continue with specified parser
-                //
-                if ( sarType == 1) {
-                    if (sarParsersolaris == null) {
-                        sarParsersolaris = new net.atomique.ksar.Solaris.Parser(this);
-                    }
-                    parserreturn = sarParsersolaris.parse(thisLine, first, matcher);
-                    continue;
-                } else if ( sarType == 2 ) {
-                    if (sarParserlinux == null) {
-                        sarParserlinux = new net.atomique.ksar.Linux.Parser(this);
-                    }
-                    parserreturn = sarParserlinux.parse(thisLine, first, matcher);
-                    continue;
-                } else if ( sarType == 3 ) {
-                    if (sarParserAix == null) {
-                        sarParserAix = new net.atomique.ksar.AIX.Parser(this);
-                    }
-                    parserreturn = sarParserAix.parse(thisLine, first, matcher);
-                    continue;
-                } else if ( sarType == 4 ) {
-                    if (sarParserHpux == null) {
-                        sarParserHpux = new net.atomique.ksar.Hpux.Parser(this);
-                    }
-                    parserreturn = sarParserHpux.parse(thisLine, first, matcher);
-                    continue;
-                } else if ( sarType == 5 ) {
-                    if (sarParserMac == null) {
-                        sarParserMac = new net.atomique.ksar.Mac.Parser(this);
-                    }
-                    parserreturn = sarParserMac.parse(thisLine, first, matcher);
-                    continue;
-                } else if ( sarType == 6 ) {
-                    if (sarParserEsar == null) {
-                        sarParserEsar = new net.atomique.ksar.Esar.Parser(this);
-                    }
-                    parserreturn = sarParserEsar.parse(thisLine, first, matcher);
-                    continue;
                 }
             }
-            // end of while
-            long elapsedTimeMillis = System.currentTimeMillis() - start;
-            System.out.print("time to parse: " + elapsedTimeMillis + "ms ");
-            System.out.print("number of line: " + num_lines + " ");
-            System.out.println("line/msec: " + (float) (num_lines / elapsedTimeMillis));
-
-        } catch (IOException ioe) {
-            if (!command_interrupted) {
-                System.err.println("ouch something bad has append");
+            
+            //
+            // continue with specified parser
+            //
+            if ( sarType == 1) {
+                if (sarParsersolaris == null) {
+                    sarParsersolaris = new net.atomique.ksar.Solaris.Parser(this);
+                }
+                parserreturn = sarParsersolaris.parse(thisLine, first, matcher);
+                continue;
+            } else if ( sarType == 2 ) {
+                if (sarParserlinux == null) {
+                    sarParserlinux = new net.atomique.ksar.Linux.Parser(this);
+                }
+                parserreturn = sarParserlinux.parse(thisLine, first, matcher);
+                continue;
+            } else if ( sarType == 3 ) {
+                if (sarParserAix == null) {
+                    sarParserAix = new net.atomique.ksar.AIX.Parser(this);
+                }
+                parserreturn = sarParserAix.parse(thisLine, first, matcher);
+                continue;
+            } else if ( sarType == 4 ) {
+                if (sarParserHpux == null) {
+                    sarParserHpux = new net.atomique.ksar.Hpux.Parser(this);
+                }
+                parserreturn = sarParserHpux.parse(thisLine, first, matcher);
+                continue;
+            } else if ( sarType == 5 ) {
+                if (sarParserMac == null) {
+                    sarParserMac = new net.atomique.ksar.Mac.Parser(this);
+                }
+                parserreturn = sarParserMac.parse(thisLine, first, matcher);
+                continue;
+            } else if ( sarType == 6 ) {
+                if (sarParserEsar == null) {
+                    sarParserEsar = new net.atomique.ksar.Esar.Parser(this);
+                }
+                parserreturn = sarParserEsar.parse(thisLine, first, matcher);
+                continue;
             }
         }
+        // end of while
+        long elapsedTimeMillis = System.currentTimeMillis() - start;
+        System.out.print("time to parse: " + elapsedTimeMillis + "ms ");
+        System.out.print("number of line: " + num_lines + " ");
+        System.out.println("line/msec: " + (float) (num_lines / elapsedTimeMillis));
+
+
         tell_parsing(false);
         if ( sarType == 0 ) {
             if (myUI == null) {
@@ -891,7 +902,6 @@ public class kSar {
         myUI.redobutton.setEnabled(val);
         myUI.addtoauto.setEnabled(val);
         myUI.exporttxtmenu.setEnabled(val);
-        command_interrupted = false;
     }
 
     private void doclosetrigger() {
@@ -1034,8 +1044,6 @@ public class kSar {
     public boolean hasscallnode = false;
     public DefaultMutableTreeNode scalltreenode = new DefaultMutableTreeNode("Syscalls");
     public HashMap<String,AllGraph> scallSarList = new HashMap<String,AllGraph>();
-    Thread launched_command = null;
-    public boolean command_interrupted = false;
     // Esar buffer
     public boolean hasbuffernode = false;
     public DefaultMutableTreeNode buffertreenode = new DefaultMutableTreeNode("Buffers");

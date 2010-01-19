@@ -46,6 +46,9 @@ public class FileSystemDataRetriever implements IDataRetriever {
         return this.sarFile;
     }
 	
+	/* (non-Javadoc)
+	 * @see net.atomique.ksar.IDataRetriever#getData()
+	 */
 	@Override
 	public Reader getData() throws DataRetrievingFailedException {
         if (this.sarFile == null || promptForData) {
@@ -64,6 +67,9 @@ public class FileSystemDataRetriever implements IDataRetriever {
 		}
 	}
 
+	/* (non-Javadoc)
+	 * @see net.atomique.ksar.IDataRetriever#getRedoCommand()
+	 */
 	@Override
 	public String getRedoCommand() {
 		return ("file://" + this.sarFile);

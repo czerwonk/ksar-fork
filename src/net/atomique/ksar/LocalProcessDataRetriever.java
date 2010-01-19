@@ -33,6 +33,9 @@ public class LocalProcessDataRetriever implements IDataRetriever {
         return this.command;
     }
 	
+	/* (non-Javadoc)
+	 * @see net.atomique.ksar.IDataRetriever#getData()
+	 */
 	@Override
 	public Reader getData() throws DataRetrievingFailedException {
         if (this.command == null || this.promptForData) {   
@@ -60,6 +63,9 @@ public class LocalProcessDataRetriever implements IDataRetriever {
         }
 	}
 
+	/* (non-Javadoc)
+	 * @see net.atomique.ksar.IDataRetriever#getRedoCommand()
+	 */
 	@Override
 	public String getRedoCommand() {
 		return ("cmd://" + this.command);

@@ -1,8 +1,6 @@
 package net.atomique.ksar;
 
 import java.awt.Component;
-import java.util.Collection;
-import java.util.Collections;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
@@ -53,9 +51,8 @@ public class JOptionPaneMessageCreator implements IMessageCreator {
      * @see net.atomique.ksar.IMessageCreator#showTextInputWithSuggestionDialog(java.lang.String, java.lang.String, java.lang.Iterable, java.lang.String)
      */
     @Override
-    public String showTextInputWithSuggestionDialog(String title, String message, 
-                                                    Collection<String> suggestions, String defaultValue) {
-        /*DefaultComboBoxModel model = new DefaultComboBoxModel();
+    public String showTextInputWithSuggestionDialog(String title, Iterable<String> suggestions, String defaultValue) {
+        DefaultComboBoxModel model = new DefaultComboBoxModel();
         
         if (suggestions != null) {
             for (String suggestion : suggestions) {
@@ -68,12 +65,16 @@ public class JOptionPaneMessageCreator implements IMessageCreator {
         }
         
         JComboBox comboBox = new JComboBox(model);
-        comboBox.setEditable(true);*/
+        comboBox.setEditable(true);
         
-        Object result = JOptionPane.showInputDialog(this.parent, message, title, JOptionPane.PLAIN_MESSAGE, 
-                                                    null, suggestions.toArray(), defaultValue);
+        int result = JOptionPane.showConfirmDialog(this.parent, comboBox, title, JOptionPane.OK_CANCEL_OPTION);
         
-        return ((result != null) ? result.toString() : null);
+        if (result == JOptionPane.OK_OPTION 
+                && comboBox.getSelectedItem() != null) {
+            return comboBox.getSelectedItem().toString();
+        }
+        
+        return null;
     }
 
     /* (non-Javadoc)
