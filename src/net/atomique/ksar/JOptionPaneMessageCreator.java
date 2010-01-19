@@ -5,6 +5,7 @@ import java.awt.Component;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
+import javax.swing.JPasswordField;
 
 
 /**
@@ -43,15 +44,29 @@ public class JOptionPaneMessageCreator implements IMessageCreator {
      * @see net.atomique.ksar.IMessageCreator#showTextInputDialog(java.lang.String, java.lang.String)
      */
     @Override
-    public String showTextInputDialog(String title, String message) {
-        return JOptionPane.showInputDialog(this.parent, message);
+    public String showTextInputDialog(String title, String message, boolean maskedInput) {
+        if (maskedInput) {
+            JPasswordField passwordField = new JPasswordField();
+            passwordField.setToolTipText(message);
+            
+            int result = JOptionPane.showConfirmDialog(this.parent, passwordField, title, JOptionPane.OK_CANCEL_OPTION);
+            
+            if (result == JOptionPane.OK_OPTION) {
+                return new String(passwordField.getPassword());
+            }
+            
+            return null;
+        }
+        else {
+            return JOptionPane.showInputDialog(this.parent, message, title, JOptionPane.PLAIN_MESSAGE);    
+        }
     }
 
     /* (non-Javadoc)
      * @see net.atomique.ksar.IMessageCreator#showTextInputWithSuggestionDialog(java.lang.String, java.lang.String, java.lang.Iterable, java.lang.String)
      */
     @Override
-    public String showTextInputWithSuggestionDialog(String title, Iterable<String> suggestions, String defaultValue) {
+    public String showTextInputWithSuggestionDialog(String title, String message, Iterable<String> suggestions, String defaultValue) {
         DefaultComboBoxModel model = new DefaultComboBoxModel();
         
         if (suggestions != null) {
@@ -66,6 +81,7 @@ public class JOptionPaneMessageCreator implements IMessageCreator {
         
         JComboBox comboBox = new JComboBox(model);
         comboBox.setEditable(true);
+        comboBox.setToolTipText(message);
         
         int result = JOptionPane.showConfirmDialog(this.parent, comboBox, title, JOptionPane.OK_CANCEL_OPTION);
         

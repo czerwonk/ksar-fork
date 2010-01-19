@@ -224,7 +224,8 @@ public class SshDataRetriever implements IDataRetriever {
 	}
 
 	private void requestCommand() {
-		this.command = this.messageCreator.showTextInputWithSuggestionDialog("SSH command", 
+		this.command = this.messageCreator.showTextInputWithSuggestionDialog("SSH command",
+		                                                                     "Please enter your command.",
 		                                                                     kSarConfig.sshconnectioncmd, 
 		                                                                     this.command);
 	}
@@ -286,8 +287,10 @@ public class SshDataRetriever implements IDataRetriever {
 	}
 
 	private void requestConnection() throws DataRetrievingFailedException {
-		String connection = this.messageCreator.showTextInputWithSuggestionDialog("Server connection (user@host[:port])", 
-		                                                                          kSarConfig.sshconnectionmap, this.getServer(false));
+		String connection = this.messageCreator.showTextInputWithSuggestionDialog("SSSH erver connection (user@host[:port])",
+		                                                                          "Please enter your connection data.",
+		                                                                          kSarConfig.sshconnectionmap, 
+		                                                                          this.getServer(false));
 		this.setServer(connection);
 	}
 	
@@ -375,7 +378,7 @@ public class SshDataRetriever implements IDataRetriever {
 					return true;
 				}
 				
-				String enteredPassphrase = messageCreator.showTextInputDialog("Passphrase", message);
+				String enteredPassphrase = messageCreator.showTextInputDialog("Passphrase", message, true);
 				
 				if (enteredPassphrase != null) {
 					passphrase = enteredPassphrase;
@@ -397,7 +400,7 @@ public class SshDataRetriever implements IDataRetriever {
 					return true;
 				}
 				
-				String enteredPassword = messageCreator.showTextInputDialog("Password", message);
+				String enteredPassword = messageCreator.showTextInputDialog("Password", message, true);
 				
 				if (enteredPassword != null) {
 					password = enteredPassword;

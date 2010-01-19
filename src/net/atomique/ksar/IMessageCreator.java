@@ -38,17 +38,19 @@ public interface IMessageCreator {
 	/**
 	 * Shows a dialog with a text input field in a suggestion mode
 	 * @param title Title to show
+	 * @param message Message to show
 	 * @param suggestions Suggestions shown in the dialog
 	 * @param defaultValue Value selected by default
 	 * @return Entered text or null (if dialog was canceled)
 	 */
-	String showTextInputWithSuggestionDialog(String title, Iterable<String> suggestions, String defaultValue);
+	String showTextInputWithSuggestionDialog(String title, String message, Iterable<String> suggestions, String defaultValue);
 	
 	/**
 	 * Shows a dialog with a text input field
 	 * @param title Title to show
 	 * @param message Message to show
+	 * @param maskInput 
 	 * @return Entered text or null (if dialog was canceled)
 	 */
-	String showTextInputDialog(String title, String message);
+	String showTextInputDialog(String title, String message, boolean maskInput);
 }
