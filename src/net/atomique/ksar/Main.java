@@ -23,17 +23,10 @@ public class Main {
      */
     public static void main(final String[] args) {
         int i = 0;
-        String arg;
-/*
-        Locale[] locales1 = Locale.getAvailableLocales();
-                    for (i=0; i < locales1.length; i++ ) {
-                        System.out.println("" + locales1[i].getDisplayName() + " " + locales1[i].getCountry());
-                    }
-        System.exit(0);
-        */
+
         if (args.length > 0) {
             while (i < args.length && args[i].startsWith("-")) {
-                arg = args[i++];
+                String arg = args[i++];
                 // HELP
                 if ("-help".equals(arg)) {
                     usage();
@@ -267,6 +260,8 @@ public class Main {
 
         // test if output was asked
         if (outputpdffile != null || outputjpgbase != null || outputpngbase != null || outputcsvfile != null) {
+            throw new IllegalArgumentException("exporting is temporarly not supported.");
+            /*
             // output given
             nogui = true;
             // no input file
@@ -277,6 +272,7 @@ public class Main {
             if (outputcsvfile != null && outputpdffile != null && outputjpgbase != null && outputpngbase != null && onlygraphname) {
                 exit_error("You cannot specify -outputPDF -outpufPNG -output -outputJPG -outputCSV -showOnlygraphName together");
             }
+            */
         }
         //
         // shortcut editing
@@ -285,9 +281,9 @@ public class Main {
             tmp = null;
         }
         // NOGUI
-        if ( ! nogui ) {
+        //if ( ! nogui ) {
             start_gui();
-        } else {
+        /*} else {
             System.setProperty("java.awt.headless", "true");
             final ListIterator listItr = inputfile.listIterator();
             while (listItr.hasNext()) {
@@ -327,8 +323,7 @@ public class Main {
                 }
                 
             }
-
-        }
+        }*/
 
     }
 
@@ -354,10 +349,10 @@ public class Main {
         System.err.println("-userPrefs: will use the userPrefs for outputing graphs (last export of this host)");
         System.err.println("-showOnlygraphName: will only print graph name available for that data (to be use for -graph)");
         System.err.println("-addHTML: will create an html page with PNG/JPG image");
-        System.err.println("-outputPDF <pdf file> : output the pdf report to the pdf file");
-        System.err.println("-outputPNG <base filename> : output the graphs to PNG file using argument as base filename");
-        System.err.println("-outputJPG <base filename> : output the graphs to JPG file using argument as base filename");
-        System.err.println("-outputCSV <CSV file> : output the CSV file");
+        //System.err.println("-outputPDF <pdf file> : output the pdf report to the pdf file");
+        //System.err.println("-outputPNG <base filename> : output the graphs to PNG file using argument as base filename");
+        //System.err.println("-outputJPG <base filename> : output the graphs to JPG file using argument as base filename");
+        //System.err.println("-outputCSV <CSV file> : output the CSV file");
         System.err.println("-width <size> : make JPG/PNG with specified width size (default: 800)");
         System.err.println("-height <size> : make JPG/PNG with specified height size (default: 600)");
         System.err.println("-startdate <date> : will graph the range begining at that time");

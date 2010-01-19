@@ -696,19 +696,6 @@ public class kSarUI extends javax.swing.JInternalFrame {
                 mysar.do_mission(mysar.reload_command);
             }
         }
-        if ("Stop".equals(redobutton.getText())) {
-            mysar.command_interrupted = true;
-            try {
-                if ( mysar.launched_command != null) {
-                    mysar.launched_command.interrupt();
-                    mysar.launched_command.join(100);
-                }
-            } catch (InterruptedException iee) {
-                iee.printStackTrace();
-            }
-            mysar.launched_command=null;
-            mysar.changemenu(true);
-        }
     }//GEN-LAST:event_redobuttonActionPerformed
 
     
@@ -735,16 +722,8 @@ public class kSarUI extends javax.swing.JInternalFrame {
     }
     
     private void formInternalFrameClosing(javax.swing.event.InternalFrameEvent evt) {//GEN-FIRST:event_formInternalFrameClosing
-        mysar.command_interrupted = true;
-        if (mysar.launched_command != null) {
-            try {
-            mysar.launched_command.interrupt();
-            mysar.launched_command.join(100);
-            } catch (InterruptedException iee) {
-                iee.printStackTrace();
-            }
-        }
-        mysar.launched_command=null;
+        // TODO: stop running update
+
         save_tempfile();
         this.dispose();
         mysar.cleanup_temp();
