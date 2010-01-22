@@ -24,6 +24,7 @@ public class FileSystemDataRetriever implements IDataRetriever {
 	 */
     public FileSystemDataRetriever(File file, boolean promptForData) {
     	this.promptForData = promptForData;
+    	this.sarFile = file;
     }
     
     
