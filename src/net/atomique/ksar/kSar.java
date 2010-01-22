@@ -145,6 +145,10 @@ public class kSar {
                     else if (ex.getCause() instanceof IOException) {
                         messageCreator.showErrorMessage("Error", "Error while parsing data.");
                     }
+                    else {
+                        ex.getCause().printStackTrace();
+                        messageCreator.showErrorMessage("Error", "An unexpected error occured.");
+                    }
                 }
                 finally {
                     tell_parsing(false);
@@ -596,75 +600,80 @@ public class kSar {
         start = System.currentTimeMillis();
         String line = null;
         
-        while ((line = reader.readLine()) != null) {
-            lineCount++;
-            
-            // skip empty line
-            if (line.length() == 0) {
-                continue;
-            }
-            
-            StringTokenizer matcher = new StringTokenizer(line);
-            
-            if (matcher.countTokens() == 0) {
-                continue;
-            }
-            
-            String first = matcher.nextToken();
-            
-            if (first.equals("Average")) {
-                underaverage = 1;
-                continue;
-            }
-            
-            // match the unix restart message and skip this line
-            if (line.indexOf("unix restarts") >= 0 
-                    || line.indexOf("LINUX RESTART") >= 0 
-                    || line.indexOf(" unix restared") >= 0) {
-                underaverage = 0;
-                continue;
-            }
-
-            // match the System Configuration line on AIX
-            if (line.indexOf("System Configuration") >= 0) {
-                continue;
-            }
-
-            if (line.indexOf("State change") >= 0) {
-                underaverage = 0;
-                continue;
-            }
-            
-            if (parser == null) {
+        try {
+            while ((line = reader.readLine()) != null) {
+                lineCount++;
                 
-                if (first.equals(SarType.SunOS.getParsingString())) {
-                    parser = new net.atomique.ksar.Solaris.Parser(this);
-                }
-                else if (first.equals(SarType.Darwin.getParsingString())) {
-                    parser = new net.atomique.ksar.Mac.Parser(this);
-                }
-                else if (first.equals(SarType.Linux.getParsingString())) {
-                    parser = new net.atomique.ksar.Linux.Parser(this);
-                }
-                else if (first.equals(SarType.HP_UX.getParsingString())) {
-                    parser = new net.atomique.ksar.Hpux.Parser(this);
-                }
-                else if (first.equals(SarType.AIX.getParsingString())) {
-                    parser = new net.atomique.ksar.AIX.Parser(this);
-                }
-                else if (first.equals(SarType.Esar.getParsingString())) {
-                    parser = new net.atomique.ksar.Esar.Parser(this);
-                }
-                else {
-                    throw new ParsingException(parser_err1);
+                // skip empty line
+                if (line.length() == 0) {
+                    continue;
                 }
                 
-                parser.parseOsInfo(matcher);
+                StringTokenizer matcher = new StringTokenizer(line);
+                
+                if (matcher.countTokens() == 0) {
+                    continue;
+                }
+                
+                String first = matcher.nextToken();
+                
+                if (first.equals("Average")) {
+                    underaverage = 1;
+                    continue;
+                }
+                
+                // match the unix restart message and skip this line
+                if (line.indexOf("unix restarts") >= 0 
+                        || line.indexOf("LINUX RESTART") >= 0 
+                        || line.indexOf(" unix restared") >= 0) {
+                    underaverage = 0;
+                    continue;
+                }
+
+                // match the System Configuration line on AIX
+                if (line.indexOf("System Configuration") >= 0) {
+                    continue;
+                }
+
+                if (line.indexOf("State change") >= 0) {
+                    underaverage = 0;
+                    continue;
+                }
+                
+                if (parser == null) {
+                    
+                    if (first.equals(SarType.SunOS.getParsingString())) {
+                        parser = new net.atomique.ksar.Solaris.Parser(this);
+                    }
+                    else if (first.equals(SarType.Darwin.getParsingString())) {
+                        parser = new net.atomique.ksar.Mac.Parser(this);
+                    }
+                    else if (first.equals(SarType.Linux.getParsingString())) {
+                        parser = new net.atomique.ksar.Linux.Parser(this);
+                    }
+                    else if (first.equals(SarType.HP_UX.getParsingString())) {
+                        parser = new net.atomique.ksar.Hpux.Parser(this);
+                    }
+                    else if (first.equals(SarType.AIX.getParsingString())) {
+                        parser = new net.atomique.ksar.AIX.Parser(this);
+                    }
+                    else if (first.equals(SarType.Esar.getParsingString())) {
+                        parser = new net.atomique.ksar.Esar.Parser(this);
+                    }
+                    else {
+                        throw new ParsingException(parser_err1);
+                    }
+                    
+                    parser.parseOsInfo(matcher);
+                }
+                
+                parser.parse(line, first, matcher);
             }
-            
-            parser.parse(line, first, matcher);
         }
-        // end of while
+        finally {
+            System.out.println("Line count: " + lineCount);
+        }
+        
         long elapsedTimeMillis = System.currentTimeMillis() - start;
         System.out.print("time to parse: " + elapsedTimeMillis + "ms ");
         System.out.print("number of line: " + lineCount + " ");

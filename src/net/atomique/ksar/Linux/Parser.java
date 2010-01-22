@@ -210,7 +210,6 @@ public class Parser implements IOsSpecificParser {
             }
         }
 
-
         lastHeader = new String(matcher.nextToken());
         // was a header ?
         if (headerFound == 1) {
