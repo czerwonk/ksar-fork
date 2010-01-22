@@ -6,6 +6,10 @@ package net.atomique.ksar.Hpux;
 
 import java.util.StringTokenizer;
 import javax.swing.tree.DefaultMutableTreeNode;
+
+import net.atomique.ksar.IOsSpecificParser;
+import net.atomique.ksar.OSInfo;
+import net.atomique.ksar.ParsingException;
 import net.atomique.ksar.diskName;
 import net.atomique.ksar.kSar;
 import org.jfree.data.general.SeriesException;
@@ -13,15 +17,50 @@ import org.jfree.data.time.Second;
 
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
-public class Parser {
+public class Parser implements IOsSpecificParser {
 
     public Parser(kSar hissar) {
         mysar = hissar;
     }
+    
+    
+   
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parseOsInfo(java.util.StringTokenizer)
+     */
+    @Override
+    public void parseOsInfo(StringTokenizer matcher) {
+        if (this.mysar.myOS == null) {
+            this.mysar.myOS = new OSInfo("HP-UX", "automatically");
+        }
+        this.mysar.hostName = matcher.nextToken();
+        this.mysar.myOS.setHostname(this.mysar.hostName);
+        this.mysar.myOS.setOSversion(matcher.nextToken());
+        this.mysar.myOS.setKernel(matcher.nextToken());
+        this.mysar.myOS.setCpuType(matcher.nextToken());
+        
+        String sarDate = matcher.nextToken();
+        this.mysar.myOS.setDate(sarDate);
+        String[] dateSplit = sarDate.split("/");
+        if (dateSplit.length == 3) {
+            this.mysar.day = Integer.parseInt(dateSplit[1]);
+            this.mysar.month = Integer.parseInt(dateSplit[0]);
+            this.mysar.year = Integer.parseInt(dateSplit[2]);
+            if (this.mysar.year < 100) { // solaris 8 show date on two digit
+                this.mysar.year += 2000;
+            }
+        }
+        
+        this.mysar.parseAlternatediskname();
+    }
 
-    public int parse(String thisLine, String first, StringTokenizer matcher) {
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parse(java.lang.String, java.lang.String, java.util.StringTokenizer)
+     */
+    @Override
+    public void parse(String thisLine, String first, StringTokenizer matcher) throws ParsingException {
         int headerFound = 0;
         // match some header line
         if (thisLine.indexOf("%usr") > 0) {
@@ -84,7 +123,7 @@ public class Parser {
         // parse time or continue except device line that are missing the time entry
         String[] sarTime = first.split(":");
         if (sarTime.length != 3 && !statType.equals("device")) {
-            return 1;
+            return;
         } else {
             if (sarTime.length == 3) {
                 heure = Integer.parseInt(sarTime[0]);
@@ -112,13 +151,13 @@ public class Parser {
         if (matcher.hasMoreElements()) {
             lastHeader = matcher.nextToken();
         } else {
-            return 1;
+            return;
         }
         // was a header ?
         if (headerFound == 1) {
             if (lastHeader.equals(statType)) {
                 headerFound = 0;
-                return 1;
+                return;
             }
 
             statType = lastHeader;
@@ -132,7 +171,7 @@ public class Parser {
                     mysar.pdfList.put("HpuxcpuSar", sarCPU);
                     sarCPU.setGraphLink("HpuxcpuSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("device")) {
                 if ( ! mysar.hasdisknode ) {
@@ -141,7 +180,7 @@ public class Parser {
                     }
                     mysar.hasdisknode = true;
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("runq-sz")) {
                 if (sarRQUEUE == null) {
@@ -160,7 +199,7 @@ public class Parser {
                     mysar.pdfList.put("HpuxSqueueSar", sarSQUEUE);
                     sarSQUEUE.setGraphLink("HpuxSqueueSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("bread/s")) {
                 if (sarBUFFER == null) {
@@ -171,7 +210,7 @@ public class Parser {
                     mysar.pdfList.put("HpuxbufferSar", sarBUFFER);
                     sarBUFFER.setGraphLink("HpuxbufferSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("swpin/s")) {
                 if (sarSWAP == null) {
@@ -182,7 +221,7 @@ public class Parser {
                     mysar.pdfList.put("HpuxswapingSar", sarSWAP);
                     sarSWAP.setGraphLink("HpuxswapSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("scall/s")) {
                 if (sarSYSCALL == null) {
@@ -193,7 +232,7 @@ public class Parser {
                     mysar.pdfList.put("syscalSar", sarSYSCALL);
                     sarSYSCALL.setGraphLink("HpuxsyscalSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("iget/s")) {
                 if (sarFILE == null) {
@@ -204,7 +243,7 @@ public class Parser {
                     mysar.pdfList.put("HpuxfileSar", sarFILE);
                     sarFILE.setGraphLink("HpuxfileSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("rawch/s")) {
                 if (sarTTY == null) {
@@ -215,10 +254,10 @@ public class Parser {
                     mysar.pdfList.put("HpuxttySar", sarTTY);
                     sarTTY.setGraphLink("HpuxttySar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("proc-sz")) {
-                return 1;
+                return;
             }
 
             if (lastHeader.equals("msg/s")) {
@@ -230,11 +269,11 @@ public class Parser {
                     mysar.pdfList.put("HpuxmsgSar", sarMSG);
                     sarMSG.setGraphLink("HpuxmsgSar");
                 }
-                return 1;
+                return;
             }
 
             headerFound = 0;
-            return 1;
+            return;
         }
 
         // for CPU
@@ -245,7 +284,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarCPU.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("swpin/s")) {
                 val1 = new Float(lastHeader);
@@ -254,7 +293,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarSWAP.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("scall/s")) {
                 val1 = new Float(lastHeader);
@@ -265,20 +304,20 @@ public class Parser {
                 val6 = new Float(matcher.nextToken());
                 val7 = new Float(matcher.nextToken());
                 sarSYSCALL.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("iget/s")) {
                 val1 = new Float(lastHeader);
                 val2 = new Float(matcher.nextToken());
                 val3 = new Float(matcher.nextToken());
                 sarFILE.add(now, val1, val2, val3);
-                return 1;
+                return;
             }
             if (statType.equals("msg/s")) {
                 val1 = new Float(lastHeader);
                 val2 = new Float(matcher.nextToken());
                 sarMSG.add(now, val1, val2);
-                return 1;
+                return;
             }
             if (statType.equals("rawch/s")) {
                 val1 = new Float(lastHeader);
@@ -288,7 +327,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());
                 sarTTY.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             if (statType.equals("bread/s")) {
                 val1 = new Float(lastHeader);
@@ -300,7 +339,7 @@ public class Parser {
                 val7 = new Float(matcher.nextToken());
                 val8 = new Float(matcher.nextToken());
                 sarBUFFER.add(now, val1, val2, val3, val4, val5, val6, val7, val8);
-                return 1;
+                return;
             }
             if (statType.equals("runq-sz")) {
                 if (matcher.hasMoreElements()) {
@@ -308,7 +347,7 @@ public class Parser {
                     val2 = new Float(matcher.nextToken());
                     sarRQUEUE.add(now, val1, val2);
                 } else {
-                    return 1;
+                    return;
                 }
                 if (matcher.hasMoreElements()) {
                     val3 = new Float(matcher.nextToken());
@@ -316,11 +355,11 @@ public class Parser {
                     sarSQUEUE.add(now, val3, val4);
 
                 }
-                return 1;
+                return;
             }
             if (statType.equals("device")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 diskxferSar mydiskxfer;
                 diskwaitSar mydiskwait;
@@ -353,7 +392,7 @@ public class Parser {
                     val6 = new Float(matcher.nextToken());
                     mydiskxfer.add(now, val4, val3, val6);
                     mydiskwait.add(now, val2, val5, val1);
-                    return 1;
+                    return;
                 } else {
                     if (!mysar.disksSarList.containsKey(first + "Hpuxxfer")) {
                         diskName tmp = new diskName(first);
@@ -383,14 +422,12 @@ public class Parser {
                     val6 = new Float(matcher.nextToken());
                     mydiskxfer.add(now, val4, val3, val6);
                     mydiskwait.add(now, val2, val5, val1);
-                    return 1;
+                    return;
                 }
             }
         } catch (SeriesException e) {
-            System.out.println("Hpux parser: " + e);
-            return -1;
+            throw new ParsingException("Hpux parser: " + e);
         }
-        return 0;
     }
     
     kSar mysar;

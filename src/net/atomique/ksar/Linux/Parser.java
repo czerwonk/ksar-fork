@@ -8,22 +8,66 @@ import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 import javax.swing.tree.DefaultMutableTreeNode;
+
+import net.atomique.ksar.IOsSpecificParser;
+import net.atomique.ksar.OSInfo;
+import net.atomique.ksar.ParsingException;
 import net.atomique.ksar.diskName;
 import net.atomique.ksar.kSar;
+
 import org.jfree.data.general.SeriesException;
 import org.jfree.data.time.Second;
 
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
-public class Parser {
+public class Parser implements IOsSpecificParser {
 
     public Parser(kSar hissar) {
         mysar = hissar;
     }
 
-    public int parse(String thisLine, String first, StringTokenizer matcher) {
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parseOsInfo(java.util.StringTokenizer)
+     */
+    @Override
+    public void parseOsInfo(StringTokenizer matcher) {
+        if (this.mysar.myOS == null) {
+            this.mysar.myOS = new OSInfo("Linux", "automatically");
+        }
+        this.mysar.myOS.setKernel(matcher.nextToken());
+        this.mysar.hostName = matcher.nextToken();
+        this.mysar.myOS.setHostname(this.mysar.hostName.substring(1, this.mysar.hostName.length() - 1));
+        
+        String sarDate = matcher.nextToken();
+        this.mysar.myOS.setDate(sarDate);
+        String[] dateSplit = sarDate.split("/");
+        if (dateSplit.length == 3) {
+            this.mysar.day = Integer.parseInt(dateSplit[1]);
+            this.mysar.month = Integer.parseInt(dateSplit[0]);
+            this.mysar.year = Integer.parseInt(dateSplit[2]);
+            if (this.mysar.year < 100) { // solaris 8 show date on two digit
+                this.mysar.year += 2000;
+            }
+        }
+        dateSplit = sarDate.split("-");
+        if (dateSplit.length == 3) {
+            this.mysar.day = Integer.parseInt(dateSplit[2]);
+            this.mysar.month = Integer.parseInt(dateSplit[1]);
+            this.mysar.year = Integer.parseInt(dateSplit[0]);
+        }
+        
+        this.mysar.solarispagesize = 0;
+        this.mysar.parseAlternatediskname();
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parse(java.lang.String, java.lang.String, java.util.StringTokenizer)
+     */
+    @Override
+    public void parse(String thisLine, String first, StringTokenizer matcher) throws ParsingException {
         String prog;
         val1 = null;
         val2 = null;
@@ -145,7 +189,7 @@ public class Parser {
         // parse time or continue except device line that are missing the time entry
         String[] sarTime = first.split(":");
         if (sarTime.length != 3) {
-            return 1;
+            return;
         } else {
             heure = Integer.parseInt(sarTime[0]);
             minute = Integer.parseInt(sarTime[1]);
@@ -172,78 +216,78 @@ public class Parser {
         if (headerFound == 1) {
             if (lastHeader.equals(statType)) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("pgpgin/s") && thisLine.indexOf("activepg") > 0 && statType.equals("activepg")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("pgpgin/s") && thisLine.indexOf("pgscank/s") > 0 && statType.equals("pgscank/s")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("dentunusd") && thisLine.indexOf("%file-sz") > 0 && statType.equals("%file-sz")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("kbmemfree") && thisLine.indexOf("kbmemshrd") > 0 && statType.equals("kbmemshrd")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("kbmemfree") && thisLine.indexOf("%commit") > 0 && statType.equals("newkmem")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("%user") && thisLine.indexOf("%iowait") > 0 && statType.equals("%iowait")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("%user") && thisLine.indexOf("%guest") > 0 && statType.equals("%guest")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("%ser") && thisLine.indexOf("%steal") > 0 && statType.equals("%steal")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("DEV") && thisLine.indexOf("rd_sec/s") > 0 && statType.equals("rd_sec/s")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("IFACE") && thisLine.indexOf("rxpck/s") > 0 && statType.equals("rxpck/s")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("IFACE") && thisLine.indexOf("rxerr/s") > 0 && statType.equals("rxerr/s")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("DEV") && thisLine.indexOf("avgrq-sz") > 0 && statType.equals("avgrq-sz")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("runq-sz") && thisLine.indexOf("ldavg-15") > 0 && statType.equals("ldavg-15")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("bufpg/s") && thisLine.indexOf("shmpg/s") > 0 && statType.equals("shmpg/s")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             //
             // NOT BUT PIDSTAT
             //
             if (lastHeader.equals("PID") && thisLine.indexOf("RSS") > 0 && statType.equals("RSS")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("PID") && thisLine.indexOf("kB_ccwr") > 0 && statType.equals("kB_ccwr")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
             if (lastHeader.equals("%user") && thisLine.indexOf("Command") > 0 && statType.equals("Command")) {
                 headerFound = 0;
-                return 1;
+                return;
             }
 
             statType = lastHeader;
@@ -261,7 +305,7 @@ public class Parser {
                     }
                     mysar.hascpunode = true;
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("%usr") && thisLine.indexOf("Command") < 0) {
@@ -271,7 +315,7 @@ public class Parser {
                     }
                     mysar.hascpunode = true;
                 }
-                return 1;
+                return;
             }
             if (thisLine.indexOf("RSS") >= 0) {
                 statType = "RSS";
@@ -281,7 +325,7 @@ public class Parser {
                     }
                     mysar.haspidnode = true;
                 }
-                return 1;
+                return;
             }
 
             if (thisLine.indexOf("kB_ccwr") >= 0) {
@@ -292,7 +336,7 @@ public class Parser {
                     }
                     mysar.haspidnode = true;
                 }
-                return 1;
+                return;
             }
             if (statType.equals("%user") && thisLine.indexOf("Command") >= 0) {
 
@@ -305,7 +349,7 @@ public class Parser {
                     }
                     mysar.haspidnode = true;
                 }
-                return 1;
+                return;
 
             }
             //
@@ -330,10 +374,10 @@ public class Parser {
                         sarCSWCH.setGraphLink("LinuxcswchSar");
                     }
                     statType = "proccswch";
-                    return 1;
+                    return;
                 } else {
                     statType = "proc/s";
-                    return 1;
+                    return;
                 }
             }
 
@@ -346,7 +390,7 @@ public class Parser {
                     mysar.pdfList.put("LinuxcswchSar", sarCSWCH);
                     sarCSWCH.setGraphLink("LinuxcswchSar");
                 }
-                return 1;
+                return;
             }
             if (statType.equals("intr/s")) {
                 if (sarINTR == null) {
@@ -357,7 +401,7 @@ public class Parser {
                     mysar.pdfList.put("LinuxintrSar", sarINTR);
                     sarINTR.setGraphLink("LinuxintrSar");
                 }
-                return 1;
+                return;
             }
             if (statType.equals("CPU")) {
                 String intrheader = null;
@@ -383,7 +427,7 @@ public class Parser {
                 } catch (NoSuchElementException ee) {
                 }
 
-                return 1;
+                return;
             }
             if (statType.equals("pswpin/s")) {
                 if (sarSWAP2 == null) {
@@ -394,7 +438,7 @@ public class Parser {
                     mysar.pdfList.put("LinuxswapSar", sarSWAP2);
                     sarSWAP2.setGraphLink("LinuxswapSar");
                 }
-                return 1;
+                return;
             }
             if (statType.equals("tps")) {
                 if (sarIO == null) {
@@ -405,7 +449,7 @@ public class Parser {
                     mysar.pdfList.put("LinuxioSar", sarIO);
                     sarIO.setGraphLink("LinuxioSar");
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("DEV")) {
@@ -421,7 +465,7 @@ public class Parser {
                     }
                     mysar.hasdisknode = true;
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("IFACE")) {
@@ -437,7 +481,7 @@ public class Parser {
                     }
                     mysar.hasifnode = true;
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("runq-sz")) {
@@ -453,7 +497,7 @@ public class Parser {
                     statType = "ldavg-15";
                     sarLOAD.setloadOpt("ldavg-15");
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("frmpg/s")) {
@@ -469,7 +513,7 @@ public class Parser {
                     statType = "shmpg/s";
                     sarPAGE.setpageOpt("shmpg/s");
                 }
-                return 1;
+                return;
             }
             if (statType.equals("totsck")) {
                 if (sarSOCK == null) {
@@ -480,7 +524,7 @@ public class Parser {
                     mysar.pdfList.put("LinuxsockSar", sarSOCK);
                     sarSOCK.setGraphLink("LinuxsockSar");
                 }
-                return 1;
+                return;
             }
             if (statType.equals("kbmemfree") && thisLine.indexOf("%commit") < 0) {
                 if (sarKBMEM == null) {
@@ -515,7 +559,7 @@ public class Parser {
                     sarKBMISC.setmiscOpt("kbmemshrd");
                     statType = "kbmemshrd";
                 }
-                return 1;
+                return;
             }
             if (statType.equals("kbswpfree")) {
                 if (sarKBSWP == null) {
@@ -527,7 +571,7 @@ public class Parser {
                     sarKBSWP.setGraphLink("LinuxkbswpSar");
                 }
 
-                return 1;
+                return;
             }
             if (statType.equals("kbmemfree") && thisLine.indexOf("%commit") >= 0) {
                 if (sarKBMEM == null) {
@@ -549,7 +593,7 @@ public class Parser {
                 }
                 statType = "newkmem";
                 // commit %commit
-                return 1;
+                return;
             }
 
             if (statType.equals("pgpgin/s")) {
@@ -570,7 +614,7 @@ public class Parser {
                     statType = "pgscank/s";
                 }
 
-                return 1;
+                return;
             }
             if (statType.equals("call/s")) {
                 if (sarNFS == null) {
@@ -581,7 +625,7 @@ public class Parser {
                     mysar.pdfList.put("LinuxnfsSar", sarNFS);
                     sarNFS.setGraphLink("LinuxnfsSar");
                 }
-                return 1;
+                return;
             }
             if (statType.equals("scall/s")) {
                 if (sarNFSD == null) {
@@ -597,19 +641,19 @@ public class Parser {
                 if (thisLine.indexOf("%file-sz") > 0) {
                     statType = "%file-sz";
                 }
-                return 1;
+                return;
             }
             if (statType.equals("TTY")) {
-                return 1;
+                return;
             }
 
             headerFound = 0;
-            return 1;
+            return;
         }
 
         try {
             if (thisLine.indexOf("nan") > 0) {
-                return 1;
+                return;
             }
             if (statType.equals("CPU")) {
                 String intrname = null;
@@ -626,14 +670,14 @@ public class Parser {
                         i++;
                     }
                 } catch (NoSuchElementException ee) {
-                    return 1;
+                    return;
                 }
             }
             if (statType.equals("proc/s")) {
                 // proc/s
                 val1 = new Float(lastHeader);
                 sarPROC.add(now, val1);
-                return 1;
+                return;
             }
             if (statType.equals("proccswch")) {
                 // proc/s
@@ -641,21 +685,21 @@ public class Parser {
                 val2 = new Float(matcher.nextToken());
                 sarPROC.add(now, val1);
                 sarCSWCH.add(now, val2);
-                return 1;
+                return;
             }
 
             if (statType.equals("cswch/s")) {
                 // proc/s
                 val1 = new Float(lastHeader);
                 sarCSWCH.add(now, val1);
-                return 1;
+                return;
             }
             //
             // 
             // PIDSTAT Command
             if (statType.equals("Command")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 val1 = new Float(matcher.nextToken());
                 val2 = new Float(matcher.nextToken());
@@ -675,12 +719,12 @@ public class Parser {
                 }
                 tmppidcpu.add(now, val1, val2, val3);
 
-                return 1;
+                return;
             }
             //
             if (statType.equals("RSS")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 val1 = new Float(matcher.nextToken());
                 val2 = new Float(matcher.nextToken());
@@ -703,12 +747,12 @@ public class Parser {
 
                 tmppidmem.add(now, val1, val2, val3, val4, val5);
 
-                return 1;
+                return;
             }
             // kB_ccwr
             if (statType.equals("kB_ccwr")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 val1 = new Float(matcher.nextToken());
                 val2 = new Float(matcher.nextToken());
@@ -731,13 +775,13 @@ public class Parser {
 
                 tmppidio.add(now, val1, val2, val3);
 
-                return 1;
+                return;
             }
             //
             //
             if (statType.equals("%user")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 cpuSar mysarcpu = (cpuSar) mysar.cpuSarList.get(lastHeader + "-cpu");
                 if (mysarcpu == null) {
@@ -757,12 +801,12 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 mysarcpu.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
 
             if (statType.equals("%iowait")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 cpuSar mysarcpu = (cpuSar) mysar.cpuSarList.get(lastHeader + "-cpu");
                 if (mysarcpu == null) {
@@ -783,11 +827,11 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 mysarcpu.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("%steal")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 cpuSar mysarcpu = (cpuSar) mysar.cpuSarList.get(lastHeader + "-cpu");
                 if (mysarcpu == null) {
@@ -808,12 +852,12 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());
                 mysarcpu.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             //  CPU      %usr %nice %sys %iowait %steal %irq %soft %guest %idle
             if (statType.equals("%usr")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 cpuSar mysarcpu = (cpuSar) mysar.cpuSarList.get(lastHeader + "-cpu");
                 if (mysarcpu == null) {
@@ -837,7 +881,7 @@ public class Parser {
                 val8 = new Float(matcher.nextToken());
                 val9 = new Float(matcher.nextToken());
                 mysarcpu.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9);
-                return 1;
+                return;
             }
             if (statType.equals("intr/s")) {
                 // proc/s
@@ -846,14 +890,14 @@ public class Parser {
                     val1 = new Float(lastHeader);
                     sarINTR.add(now, val1);
                 }
-                return 1;
+                return;
             }
             if (statType.equals("pswpin/s")) {
                 // proc/s
                 val1 = new Float(lastHeader);
                 val2 = new Float(new String(matcher.nextToken()));
                 sarSWAP2.add(now, val1, val2);
-                return 1;
+                return;
             }
             if (statType.equals("tps")) {
                 // tps
@@ -863,12 +907,12 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarIO.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
 
             if (statType.equals("avgrq-sz")) { //DEV		 tps  rd_sec/s	wr_sec/s  avgrq-sz	 avgqu-sz	  await		svctm	  %util
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 blockSar mysarblock = (blockSar) mysar.disksSarList.get(lastHeader + "-t1");
                 block2Sar mysarblock2;
@@ -904,11 +948,11 @@ public class Parser {
                 val8 = new Float(matcher.nextToken());
                 mysarblock.add(now, val1, val2, val3);
                 mysarblock2.add(now, val4, val5, val6, val7, val8);
-                return 1;
+                return;
             }
             if (statType.equals("rd_sec/s")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 blockSar mysarblock = (blockSar) mysar.disksSarList.get(lastHeader + "-t1");
                 if (mysarblock == null) {
@@ -930,11 +974,11 @@ public class Parser {
                 val2 = new Float(matcher.nextToken());
                 val3 = new Float(matcher.nextToken());
                 mysarblock.add(now, val1, val2, val3);
-                return 1;
+                return;
             }
             if (statType.equals("DEV")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 blockSar mysarblock = (blockSar) mysar.disksSarList.get(lastHeader + "-t1");
                 if (mysarblock == null) {
@@ -954,7 +998,7 @@ public class Parser {
                 val1 = new Float(matcher.nextToken());
                 val2 = new Float(matcher.nextToken());
                 mysarblock.add(now, val1, val2);
-                return 1;
+                return;
             }
             if (statType.equals("ldavg-15")) {
                 val1 = new Float(lastHeader);
@@ -963,7 +1007,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarLOAD.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("runq-sz")) {
                 val1 = new Float(lastHeader);
@@ -971,14 +1015,14 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarLOAD.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("frmpg/s")) {
                 val1 = new Float(lastHeader);
                 val2 = new Float(matcher.nextToken());
                 val3 = new Float(matcher.nextToken());
                 sarPAGE.add(now, val1, val2, val3);
-                return 1;
+                return;
             }
             if (statType.equals("shmpg/s")) {
                 val1 = new Float(lastHeader);
@@ -986,7 +1030,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarPAGE.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("totsck")) {
                 val1 = new Float(lastHeader);
@@ -995,7 +1039,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarSOCK.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("newkmem")) { // kbmemfree kbmemused  %memused kbbuffers  kbcached  kbcommit   %commit
                 val1 = new Float(lastHeader);
@@ -1008,7 +1052,7 @@ public class Parser {
                 sarKBMEM.add(now, val1, val2, val3);
                 sarKBMISC.add(now, val4, val5);
                 sarKBMISC.addused_bufferadj(now, new Float(val2.floatValue() - val4.floatValue() - val5.floatValue()));
-                return 1;
+                return;
             }
             if (statType.equals("kbmemfree")) { //kbmemfree kbmemused	 %memused kbbuffers	 kbcached kbswpfree kbswpused  %swpused	 kbswpcad
                 val1 = new Float(lastHeader);
@@ -1024,7 +1068,7 @@ public class Parser {
                 sarKBMISC.add(now, val4, val5);
                 sarKBMISC.addused_bufferadj(now, new Float(val2.floatValue() - val4.floatValue() - val5.floatValue()));
                 sarKBSWP.add(now, val6, val7, val8, val9);
-                return 1;
+                return;
             }
             if (statType.equals("kbmemshrd")) { //kbmemfree kbmemused	 %memused kbmemshrd kbbuffers  kbcached kbswpfree kbswpused	 %swpused
                 val1 = new Float(lastHeader);
@@ -1040,7 +1084,7 @@ public class Parser {
                 sarKBMISC.add(now, val4, val5, val6);
                 sarKBMISC.addused_bufferadj(now, new Float(val2.floatValue() - val4.floatValue() - val5.floatValue()));
                 sarKBSWP.add(now, val7, val8, val9);
-                return 1;
+                return;
             }
             if (statType.equals("kbswpfree")) { //kbswpfree kbswpused  %swpused  kbswpcad   %swpcad
                 val1 = new Float(lastHeader);
@@ -1049,7 +1093,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarKBSWP.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("pgpgin/s")) { // pgpgin/s pgpgout/s	 fault/s  majflt/s
                 val1 = new Float(lastHeader);
@@ -1057,7 +1101,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarPGP.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
 
             if (statType.equals("activepg")) { // pgpgin/s pgpgout/s	activepg  inadtypg	inaclnpg  inatarpg
@@ -1068,7 +1112,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());
                 sarPGP.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             if (statType.equals("pgscank/s")) {  //pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s pgscand/s pgsteal/s    %vmeff
                 val1 = new Float(lastHeader);
@@ -1081,7 +1125,7 @@ public class Parser {
                 val8 = new Float(matcher.nextToken());
                 val9 = new Float(matcher.nextToken());
                 sarPGP.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9);
-                return 1;
+                return;
             }
 
             if (statType.equals("call/s")) {
@@ -1092,7 +1136,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());
                 sarNFS.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             if (statType.equals("scall/s")) {
                 val1 = new Float(lastHeader);
@@ -1107,11 +1151,11 @@ public class Parser {
                 val10 = new Float(matcher.nextToken());
                 val11 = new Float(matcher.nextToken());
                 sarNFSD.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10, val11);
-                return 1;
+                return;
             }
             if (statType.equals("rxpck/s")) { //DEV		tps	 rd_sec/s  wr_sec/s	 avgrq-sz	 avgqu-sz	  await		svctm	  %util
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 iface1Sar mysarif1 = (iface1Sar) mysar.ifaceSarList.get(lastHeader + "-if1");
                 iface2Sar mysarif2;
@@ -1141,11 +1185,11 @@ public class Parser {
                 val6 = new Float(matcher.nextToken());
                 val7 = new Float(matcher.nextToken());
                 mysarif1.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("rxerr/s")) { //DEV		tps	 rd_sec/s  wr_sec/s	 avgrq-sz	 avgqu-sz	  await		svctm	  %util
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 iface1Sar mysarif1 = (iface1Sar) mysar.ifaceSarList.get(lastHeader + "-if1");
                 iface2Sar mysarif2;
@@ -1177,22 +1221,20 @@ public class Parser {
                 val8 = new Float(matcher.nextToken());
                 val9 = new Float(matcher.nextToken());
                 mysarif2.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9);
-                return 1;
+                return;
             }
             if (statType.equals("dentunusd")) {
-                return 1;
+                return;
             }
             if (statType.equals("%file-sz")) {
-                return 1;
+                return;
             }
             if (statType.equals("TTY")) {
-                return 1;
+                return;
             }
         } catch (SeriesException e) {
-            System.out.println("Linux parser: " + e);
-            return -1;
+            throw new ParsingException("Linux parser: " + e);
         }
-        return 0;
     }
     kSar mysar;
     Float val1;

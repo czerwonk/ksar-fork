@@ -19,8 +19,11 @@ import java.util.StringTokenizer;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.jfree.data.time.Second;
@@ -36,8 +39,10 @@ public class kSar {
     
     private final kSarInstanceConfig config;
     private final Timer timer;
-    private String selectionPath;
     private final IMessageCreator messageCreator;
+    private final Semaphore semaphore;
+    private String selectionPath;
+    private SwingWorker<Void, Void> swingWorker;
     
     
     private kSar() {
@@ -56,6 +61,8 @@ public class kSar {
             }
             
         }, 0, TIMER_INTERVAL);
+        
+        this.semaphore = new Semaphore(1, true);
     }
     
     public kSar(String title) {
@@ -83,30 +90,87 @@ public class kSar {
         do_mission(title);
     }
     
-    private boolean updateData(IDataRetriever dataRetriever) {
-        this.resetInfo();
+    
+    public synchronized boolean isUpdateInProgress() {
+        return (this.semaphore.availablePermits() == 0);
+    }
+    
+    public synchronized void cancelUpdate() {
+        if (this.swingWorker != null) {
+            this.swingWorker.cancel(true);
+        }
+    }
+    
+    private <T extends IDataRetriever> void runUpdate(final T dataRetriever, 
+                                                      final IDataRetrievingSuccessfulHandler<T> handler) {
+        if (myUI != null) {
+            changemenu(false);
+        }
+
+        tell_parsing(true);
         
+        this.swingWorker = new SwingWorker<Void, Void>() {
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                semaphore.acquire();
+                
+                try {   
+                    updateData(dataRetriever);
+                    handler.afterCompleted(dataRetriever);
+                    return null;
+                }
+                finally {
+                    semaphore.release();
+                }
+            }
+            
+            @Override
+            protected void done() {
+                try {
+                    get();
+                    
+                    doclosetrigger();
+                    myUI.trySelectByPathString(selectionPath);
+                    changemenu(true);
+                    myUI.setTitle(hostName + " : " + startofgraph + " -> " + endofgraph);
+                }
+                catch (InterruptedException ex) {
+                    // interuptions should be logged in future
+                }
+                catch (ExecutionException ex) {
+                    if (ex.getCause() instanceof DataRetrievingFailedException 
+                            || ex.getCause() instanceof ParsingException) {
+                        messageCreator.showErrorMessage("Error", ex.getCause().getMessage());
+                    }
+                    else if (ex.getCause() instanceof IOException) {
+                        messageCreator.showErrorMessage("Error", "Error while parsing data.");
+                    }
+                }
+                finally {
+                    tell_parsing(false);
+                }
+            }
+        };
+        
+        this.swingWorker.execute();
+    }
+    
+    private void updateData(IDataRetriever dataRetriever) throws DataRetrievingFailedException, IOException, ParsingException {
         BufferedReader bufferedReader = null;
         
         try {
             Reader reader = dataRetriever.getData();
             
             if (reader == null) {
-                this.messageCreator.showErrorMessage("Error", "No data found.");
+                throw new DataRetrievingFailedException("No data found.");
             }
             
             bufferedReader = new BufferedReader(reader);
+            this.resetInfo();
             this.parse(bufferedReader);
             
             this.reload_command = dataRetriever.getRedoCommand();
-            
-            return true;
-        }
-        catch (DataRetrievingFailedException ex) {
-            this.messageCreator.showErrorMessage("Error", ex.getMessage());
-        }
-        catch (IOException ex) {
-            this.messageCreator.showErrorMessage("Error", "Error while parsing data.");
         }
         finally {
             if (bufferedReader != null) {
@@ -118,17 +182,20 @@ public class kSar {
                 }
             }
         }
-        
-        return false;
     }
     
     public void do_fileread(String filename) {
         FileSystemDataRetriever dataRetriever = ((filename == null) ? new FileSystemDataRetriever(this.config.getLastFile(), true)
                                                                     : new FileSystemDataRetriever(new File(filename), false));
         
-        if (this.updateData(dataRetriever)) {
-            this.config.setLastFile(dataRetriever.getSarFile());
-        }
+        this.runUpdate(dataRetriever,
+                       new IDataRetrievingSuccessfulHandler<FileSystemDataRetriever>() {
+
+                            @Override
+                            public void afterCompleted(FileSystemDataRetriever dataRetriever) {
+                                config.setLastFile(dataRetriever.getSarFile());
+                            }
+                       });
     }
 
     public void do_sshread(String cmd) {
@@ -137,19 +204,29 @@ public class kSar {
                                                                                this.messageCreator)
                                                         : new SshDataRetriever(cmd, this.messageCreator));
         
-        if (updateData(dataRetriever)) {
-            this.config.setLastSshCommand(dataRetriever.getCommand());
-            this.config.setLastSshServer(dataRetriever.getServer());
-        }
+        this.runUpdate(dataRetriever,
+                       new IDataRetrievingSuccessfulHandler<SshDataRetriever>() {
+
+                            @Override
+                            public void afterCompleted(SshDataRetriever dataRetriever) {
+                                config.setLastSshCommand(dataRetriever.getCommand());
+                                config.setLastSshServer(dataRetriever.getServer());
+                            }
+                       });
     }
     
     public void do_localcommand(String cmd) {
         LocalProcessDataRetriever dataRetriever = ((cmd == null) ? new LocalProcessDataRetriever(this.config.getLastCommand(), true)
                                                                  : new LocalProcessDataRetriever(cmd, false));
         
-        if (this.updateData(dataRetriever)) {
-            this.config.setLastCommand(dataRetriever.getCommand());
-        }
+        this.runUpdate(dataRetriever,
+                       new IDataRetrievingSuccessfulHandler<LocalProcessDataRetriever>() {
+
+                            @Override
+                            public void afterCompleted(LocalProcessDataRetriever dataRetriever) {
+                                config.setLastCommand(dataRetriever.getCommand());
+                            }
+                       });
     }
 
     public void do_mission(String title) {
@@ -407,8 +484,6 @@ public class kSar {
     
     
     public void resetInfo() {
-        // remake the tree
-        //graphtree = new DefaultMutableTreeNode("kSar");
         if ( myUI != null ) {
             myUI.setTitle("Empty");
             myUI.selecttimemenu.setEnabled(false);
@@ -420,7 +495,6 @@ public class kSar {
             myUI.exportcsvmenu.setEnabled(false);
             myUI.obj2 = null;
             myUI.reset2tree();
-            //setshowstackedcpu(false);
             myUI.showtriggermenu.setSelected(showtrigger);
             myUI.chkbox_cpuused.setSelected(showstackedcpu);
             myUI.memusedbufadj.setSelected(showmemusedbuffersadjusted);
@@ -428,9 +502,6 @@ public class kSar {
         }
         
         myOS = null;
-        sarType = 0;
-        kernelVersion = null;
-        sarDate = null;
         day = 0;
         month = 0;
         year = 0;
@@ -499,7 +570,6 @@ public class kSar {
         intrSarlist.clear();
         
         hostName = null;
-        sarType = 0;
         statstart = null;
         statend = null;
         datefound.clear();
@@ -511,369 +581,95 @@ public class kSar {
         DetectedBounds.clear();
         solarispagesize = -1;
         othergraphlist.clear();
-        // reset parser
-        sarParsersolaris = null;
-        sarParserlinux = null;
-        sarParserAix = null;
-        sarParserHpux = null;
-        sarParserMac = null;
-        //        
     }
 
-    
-    protected void finalize() throws Throwable {
-        cleanup_temp();
-        super.finalize();
-    }
-    
-    public void cleanup_temp() {
-        try {
-            if (tmpfile != null ) {
-            tmpfile_out.close();
-            tmpfile.delete();
-        }
-        } catch (IOException ioe) {         
-        }
-    }
-    
-    public void make_temp() {        
-        try {
-            if (tmpfile != null ) {
-            tmpfile_out.close();
-            tmpfile.delete();
-        }
-            tmpfile = File.createTempFile("ksar",".sartxt");
-            tmpfile_out = new BufferedWriter(new FileWriter(tmpfile));
-        } catch (IOException ioe) {         
-        }
-        if ( tmpfile != null ) {
-            tmpfile.deleteOnExit();
-        }
-    }
-    
-    private void parse(BufferedReader br) throws IOException {
-        int parserreturn = 0;
-        String thisLine;
-        StringTokenizer matcher;
-        String first;
+    /**
+     * Parses data provided by DataRetriever
+     * @param reader Reader provided by DataRetriever
+     * @throws IOException If reading from stream fails
+     * @throws ParsingException If parsing fails
+     */
+    private void parse(BufferedReader reader) throws IOException, ParsingException {
         long start;
-        long num_lines = 0;
+        long lineCount = 0;
+        IOsSpecificParser parser = null;
         
-        make_temp();
-        
-        if (myUI != null) {
-            changemenu(false);
-        }
-
-        tell_parsing(true);
         start = System.currentTimeMillis();
-        while ((thisLine = br.readLine()) != null) {
-            num_lines++;
-            //System.out.println("--:" + thisLine);
-            if ( tmpfile_out != null ) {
-                tmpfile_out.write(thisLine+"\n");
-            }
-            //parsedfile.append(thisLine);
+        String line = null;
+        
+        while ((line = reader.readLine()) != null) {
+            lineCount++;
+            
             // skip empty line
-            if (thisLine.length() == 0) {
+            if (line.length() == 0) {
                 continue;
             }
-            matcher = new StringTokenizer(thisLine);
+            
+            StringTokenizer matcher = new StringTokenizer(line);
+            
             if (matcher.countTokens() == 0) {
                 continue;
             }
-            // ok let's check OS version by getting first string
-            first = matcher.nextToken();
-
-            // SunOS host 5.9 Generic_118558-28 sun4u    09/01/2006
-            if ( "SunOS".equals(first) ) {
-                sarType = 1;
-                if (myOS == null) {
-                    myOS = new OSInfo("SunOS", "automatically");
-                }
-                hostName = matcher.nextToken();
-                myOS.setHostname(hostName);
-                osVersion = matcher.nextToken();
-                myOS.setOSversion(osVersion);
-                kernelVersion = matcher.nextToken();
-                myOS.setKernel(kernelVersion);
-                cpuType = matcher.nextToken();
-                myOS.setCpuType(cpuType);
-                sarDate = matcher.nextToken();
-                myOS.setDate(sarDate);
-                String[] dateSplit = sarDate.split("/");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[1]);
-                    month = Integer.parseInt(dateSplit[0]);
-                    year = Integer.parseInt(dateSplit[2]);
-                    if (year < 100) { // solaris 8 show date on two digit
-                        year += 2000;
-                    }
-                }
-                setPageSize();
-                //parseAlternatediskname();
-                continue;
-            }
-            // Linux 2.4.21-32.ELsmp (host)       09/09/06
-            if ( "Linux".equals(first) ) {
-                String tmpstr;
-                sarType = 2;
-                if (myOS == null) {
-                    myOS = new OSInfo("Linux", "automatically");
-                }
-                kernelVersion = matcher.nextToken();
-                myOS.setKernel(kernelVersion);
-                tmpstr = matcher.nextToken();
-                hostName = tmpstr.substring(1, tmpstr.length() - 1);
-                myOS.setHostname(hostName);
-                sarDate = matcher.nextToken();
-                myOS.setDate(sarDate);
-                String[] dateSplit = sarDate.split("/");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[1]);
-                    month = Integer.parseInt(dateSplit[0]);
-                    year = Integer.parseInt(dateSplit[2]);
-                    if (year < 100) { // solaris 8 show date on two digit
-                        year += 2000;
-                    }
-                }
-                dateSplit = sarDate.split("-");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[2]);
-                    month = Integer.parseInt(dateSplit[1]);
-                    year = Integer.parseInt(dateSplit[0]);
-                }
-                solarispagesize = 0;
-                parseAlternatediskname();
-                continue;
-            }
-            // AIX rsora1 3 4 0006488F4C00    12/18/06
-            if ( "AIX".equals(first) ) {
-                String tmpstr;
-                sarType = 3;
-                if (myOS == null) {
-                    myOS = new OSInfo("AIX", "automatically");
-                }
-                hostName = matcher.nextToken();
-                myOS.setHostname(hostName);
-                tmpstr = matcher.nextToken();
-                osVersion = new String(matcher.nextToken() + "." + tmpstr);
-                myOS.setOSversion(osVersion);
-                tmpstr = matcher.nextToken();
-                myOS.setMacAddress(tmpstr);
-                sarDate = matcher.nextToken();
-                myOS.setDate(sarDate);
-                String[] dateSplit = sarDate.split("/");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[1]);
-                    month = Integer.parseInt(dateSplit[0]);
-                    year = Integer.parseInt(dateSplit[2]);
-                    if (year < 100) { // solaris 8 show date on two digit
-                        year += 2000;
-                    }
-                }
-                parseAlternatediskname();
-                solarispagesize = 0;
-                continue;
-            }
-            //
-            //
-            if ("HP-UX".equals(first)) {
-                sarType = 4;
-                if (myOS == null) {
-                    myOS = new OSInfo("HP-UX", "automatically");
-                }
-                hostName = matcher.nextToken();
-                myOS.setHostname(hostName);
-                osVersion = matcher.nextToken();
-                myOS.setOSversion(osVersion);
-                kernelVersion = matcher.nextToken();
-                myOS.setKernel(kernelVersion);
-                cpuType = matcher.nextToken();
-                myOS.setCpuType(cpuType);
-                sarDate = matcher.nextToken();
-                myOS.setDate(sarDate);
-                String[] dateSplit = sarDate.split("/");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[1]);
-                    month = Integer.parseInt(dateSplit[0]);
-                    year = Integer.parseInt(dateSplit[2]);
-                    if (year < 100) { // solaris 8 show date on two digit
-                        year += 2000;
-                    }
-                }
-                parseAlternatediskname();
-                continue;
-            }
-            //
-            //
-            if ("Darwin".equals(first)) {
-                sarType = 5;
-                if (myOS == null) {
-                    myOS = new OSInfo("Mac", "automatically");
-                }
-                hostName = matcher.nextToken();
-                myOS.setHostname(hostName);
-                osVersion = matcher.nextToken();
-                myOS.setOSversion(osVersion);
-                cpuType = matcher.nextToken();
-                myOS.setCpuType(cpuType);
-                sarDate = matcher.nextToken();
-                myOS.setDate(sarDate);
-                String[] dateSplit = sarDate.split("/");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[1]);
-                    month = Integer.parseInt(dateSplit[0]);
-                    year = Integer.parseInt(dateSplit[2]);
-                    if (year < 100) { // solaris 8 show date on two digit
-                        year += 2000;
-                    }
-                }
-                parseAlternatediskname();
-                continue;
-            }
-            // SunOS host 5.9 Generic_118558-28 sun4u    09/01/2006
-            if ( "Esar".equals(first) ) {
-                sarType = 6;
-                if (myOS == null) {
-                    myOS = new OSInfo("Esar SunOS", "automatically");
-                }
-                // skip sunos
-                matcher.nextToken();
-                hostName = matcher.nextToken();
-                myOS.setHostname(hostName);
-                osVersion = matcher.nextToken();
-                myOS.setOSversion(osVersion);
-                kernelVersion = matcher.nextToken();
-                myOS.setKernel(kernelVersion);
-                cpuType = matcher.nextToken();
-                myOS.setCpuType(cpuType);
-                sarDate = matcher.nextToken();
-                myOS.setDate(sarDate);
-                String[] dateSplit = sarDate.split("/");
-                if (dateSplit.length == 3) {
-                    day = Integer.parseInt(dateSplit[1]);
-                    month = Integer.parseInt(dateSplit[0]);
-                    year = Integer.parseInt(dateSplit[2]);
-                    if (year < 100) { // solaris 8 show date on two digit
-                        year += 2000;
-                    }
-                }
-                continue;
-            }
-            //
-            //
+            
+            String first = matcher.nextToken();
+            
             if (first.equals("Average")) {
                 underaverage = 1;
                 continue;
             }
+            
             // match the unix restart message and skip this line
-            if (thisLine.indexOf("unix restarts") >= 0 || thisLine.indexOf("LINUX RESTART") >= 0 || thisLine.indexOf(" unix restared") >= 0) {
+            if (line.indexOf("unix restarts") >= 0 
+                    || line.indexOf("LINUX RESTART") >= 0 
+                    || line.indexOf(" unix restared") >= 0) {
                 underaverage = 0;
                 continue;
             }
 
             // match the System Configuration line on AIX
-            if (thisLine.indexOf("System Configuration") >= 0) {
+            if (line.indexOf("System Configuration") >= 0) {
                 continue;
             }
 
-            if (thisLine.indexOf("State change") >= 0) {
+            if (line.indexOf("State change") >= 0) {
                 underaverage = 0;
                 continue;
             }
-
-            //
-            // Getting here without sarType leads to error
-            //
-            if ( sarType == 0 ) {
-                if (myUI == null) {
-                    // NO GUI print error and exit
-                    System.err.println(parser_err1);
-                    System.exit(2);
+            
+            if (parser == null) {
+                
+                if (first.equals(SarType.SunOS.getParsingString())) {
+                    parser = new net.atomique.ksar.Solaris.Parser(this);
                 }
-                break;
+                else if (first.equals(SarType.Darwin.getParsingString())) {
+                    parser = new net.atomique.ksar.Mac.Parser(this);
+                }
+                else if (first.equals(SarType.Linux.getParsingString())) {
+                    parser = new net.atomique.ksar.Linux.Parser(this);
+                }
+                else if (first.equals(SarType.HP_UX.getParsingString())) {
+                    parser = new net.atomique.ksar.Hpux.Parser(this);
+                }
+                else if (first.equals(SarType.AIX.getParsingString())) {
+                    parser = new net.atomique.ksar.AIX.Parser(this);
+                }
+                else if (first.equals(SarType.Esar.getParsingString())) {
+                    parser = new net.atomique.ksar.Esar.Parser(this);
+                }
+                else {
+                    throw new ParsingException(parser_err1);
+                }
+                
+                parser.parseOsInfo(matcher);
             }
             
-            if (myUI != null) {
-                if ((num_lines % 30) == 1) {
-                    if (!myUI.getTitle().equals(hostName + " : " + startofgraph + " -> " + endofgraph)) {
-                        myUI.setTitle(hostName + " : " + startofgraph + " -> " + endofgraph);
-                    }
-                }
-            }
-            
-            //
-            // continue with specified parser
-            //
-            if ( sarType == 1) {
-                if (sarParsersolaris == null) {
-                    sarParsersolaris = new net.atomique.ksar.Solaris.Parser(this);
-                }
-                parserreturn = sarParsersolaris.parse(thisLine, first, matcher);
-                continue;
-            } else if ( sarType == 2 ) {
-                if (sarParserlinux == null) {
-                    sarParserlinux = new net.atomique.ksar.Linux.Parser(this);
-                }
-                parserreturn = sarParserlinux.parse(thisLine, first, matcher);
-                continue;
-            } else if ( sarType == 3 ) {
-                if (sarParserAix == null) {
-                    sarParserAix = new net.atomique.ksar.AIX.Parser(this);
-                }
-                parserreturn = sarParserAix.parse(thisLine, first, matcher);
-                continue;
-            } else if ( sarType == 4 ) {
-                if (sarParserHpux == null) {
-                    sarParserHpux = new net.atomique.ksar.Hpux.Parser(this);
-                }
-                parserreturn = sarParserHpux.parse(thisLine, first, matcher);
-                continue;
-            } else if ( sarType == 5 ) {
-                if (sarParserMac == null) {
-                    sarParserMac = new net.atomique.ksar.Mac.Parser(this);
-                }
-                parserreturn = sarParserMac.parse(thisLine, first, matcher);
-                continue;
-            } else if ( sarType == 6 ) {
-                if (sarParserEsar == null) {
-                    sarParserEsar = new net.atomique.ksar.Esar.Parser(this);
-                }
-                parserreturn = sarParserEsar.parse(thisLine, first, matcher);
-                continue;
-            }
+            parser.parse(line, first, matcher);
         }
         // end of while
         long elapsedTimeMillis = System.currentTimeMillis() - start;
         System.out.print("time to parse: " + elapsedTimeMillis + "ms ");
-        System.out.print("number of line: " + num_lines + " ");
-        System.out.println("line/msec: " + (float) (num_lines / elapsedTimeMillis));
-
-
-        tell_parsing(false);
-        if ( sarType == 0 ) {
-            if (myUI == null) {
-                System.err.println(parser_err1);
-                System.exit(2);
-            } else {
-                JOptionPane.showMessageDialog(myUI, parser_err1, "Parser error", JOptionPane.ERROR_MESSAGE);
-                resetInfo();
-                //myUI.jTree1.setModel(new DefaultTreeModel(graphtree));
-                //myUI.jTree1.setSelectionPath(new TreePath(graphtree.getRoot()));
-                myUI.setTitle("Empty");
-            }
-        } else {
-            doclosetrigger();
-            if (myUI != null) {
-                //myUI.jTree1.setModel(new DefaultTreeModel(graphtree));
-                //myUI.jTree1.setSelectionPath(new TreePath(graphtree.getRoot()));
-                //myUI.home2tree();
-                myUI.trySelectByPathString(this.selectionPath);
-                changemenu(true);
-                myUI.setTitle(hostName + " : " + startofgraph + " -> " + endofgraph);
-            }
-        }
+        System.out.print("number of line: " + lineCount + " ");
+        System.out.println("line/msec: " + (float) (lineCount / elapsedTimeMillis));
     }
 
     private void tell_parsing(final boolean val) {
@@ -951,8 +747,6 @@ public class kSar {
     }
     //
     public boolean isparsing = false;
-    // type of sar data
-    int  sarType = 0;
     // keep track of OSINFO
     public OSInfo myOS = null;
     // this is for the GUI
@@ -961,10 +755,6 @@ public class kSar {
     public DefaultMutableTreeNode graphtree = new DefaultMutableTreeNode("kSar");
     // local info
     public String hostName = null;
-    public String osVersion = null;
-    public String kernelVersion = null;
-    public String cpuType = null;
-    public String sarDate = null;
     public int day = 0;
     public int month = 0;
     public int year = 0;
@@ -1077,16 +867,10 @@ public class kSar {
     public DefaultMutableTreeNode intrtreenode = new DefaultMutableTreeNode("Interrupt");
     public boolean showstackedintrlist=false;
     //
-    // Parser
-    net.atomique.ksar.Solaris.Parser sarParsersolaris = null;
-    net.atomique.ksar.Linux.Parser sarParserlinux = null;
-    net.atomique.ksar.AIX.Parser sarParserAix = null;
-    net.atomique.ksar.Hpux.Parser sarParserHpux = null;
-    net.atomique.ksar.Mac.Parser sarParserMac = null;
-    net.atomique.ksar.Esar.Parser sarParserEsar = null;
-    //
     net.atomique.ksar.Ps.ProcessList pslist = null;
-    //
-    public File tmpfile=null;
-    public BufferedWriter tmpfile_out =null;
+    
+    private interface IDataRetrievingSuccessfulHandler<T extends IDataRetriever> {
+        
+        void afterCompleted(T dataRetriever);
+    }
 }

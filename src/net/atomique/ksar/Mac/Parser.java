@@ -6,6 +6,10 @@ package net.atomique.ksar.Mac;
 
 import java.util.StringTokenizer;
 import javax.swing.tree.DefaultMutableTreeNode;
+
+import net.atomique.ksar.IOsSpecificParser;
+import net.atomique.ksar.OSInfo;
+import net.atomique.ksar.ParsingException;
 import net.atomique.ksar.diskName;
 import net.atomique.ksar.kSar;
 import org.jfree.data.general.SeriesException;
@@ -15,13 +19,47 @@ import org.jfree.data.time.Second;
  *
  * @author alex
  */
-public class Parser {
+public class Parser implements IOsSpecificParser {
 
     public Parser(kSar hissar) {
         mysar = hissar;
     }
+    
+    
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parseOsInfo(java.util.StringTokenizer)
+     */
+    @Override
+    public void parseOsInfo(StringTokenizer matcher) {
+        if (this.mysar.myOS == null) {
+            this.mysar.myOS = new OSInfo("Mac", "automatically");
+        }
+        this.mysar.hostName = matcher.nextToken();
+        this.mysar.myOS.setHostname(this.mysar.hostName);
+        this.mysar. myOS.setOSversion(matcher.nextToken()); 
+        this.mysar.myOS.setCpuType(matcher.nextToken());
+        
+        String sarDate = matcher.nextToken();
+        this.mysar.myOS.setDate(sarDate);
+        String[] dateSplit = sarDate.split("/");
+        if (dateSplit.length == 3) {
+            this.mysar.day = Integer.parseInt(dateSplit[1]);
+            this.mysar.month = Integer.parseInt(dateSplit[0]);
+            this.mysar.year = Integer.parseInt(dateSplit[2]);
+            if (this.mysar.year < 100) { // solaris 8 show date on two digit
+                this.mysar.year += 2000;
+            }
+        }
+        
+        this.mysar.parseAlternatediskname();
+    }
 
-    public int parse(String thisLine, String first, StringTokenizer matcher) {
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parse(java.lang.String, java.lang.String, java.util.StringTokenizer)
+     */
+    @Override
+    public void parse(String thisLine, String first, StringTokenizer matcher) throws ParsingException {
         int headerFound = 0;
         if (thisLine.indexOf("%usr") > 0) {
             headerFound = 1;
@@ -44,13 +82,13 @@ public class Parser {
             mysar.underaverage = 0;
         }
         if (thisLine.indexOf("New Disk: ") > 0) {
-            return 1;
+            return;
         }
         //if ( thisLine.indexOf("%usr") >0 ) { headerFound=1; underaverage=0;}
 
         String[] sarTime = first.split(":");
         if (sarTime.length != 3) {
-            return 1;
+            return;
         } else {
             if (sarTime.length == 3) {
                 heure = Integer.parseInt(sarTime[0]);
@@ -77,7 +115,7 @@ public class Parser {
         if (headerFound == 1) {
             if (lastHeader.equals(statType)) {
                 headerFound = 0;
-                return 1;
+                return;
             }
 
             statType = lastHeader;
@@ -91,7 +129,7 @@ public class Parser {
                     mysar.pdfList.put("MaccpuSar", sarCPU4);
                     sarCPU4.setGraphLink("MaccpuSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("pgout/s")) {
                 if (sarPGOUT4 == null) {
@@ -102,7 +140,7 @@ public class Parser {
                     mysar.pdfList.put("MacpgoutSar", sarPGOUT4);
                     sarPGOUT4.setGraphLink("MacpgoutSar");
                 }
-                return 1;
+                return;
             }
             if (lastHeader.equals("pgin/s")) {
                 if (sarPGIN4 == null) {
@@ -113,7 +151,7 @@ public class Parser {
                     mysar.pdfList.put("MacpginSar", sarPGIN4);
                     sarPGIN4.setGraphLink("MacpginSar");
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("device")) {
@@ -123,7 +161,7 @@ public class Parser {
                     }
                     mysar.hasdisknode = true;
                 }
-                return 1;
+                return;
             }
 
             if (statType.equals("IFACE")) {
@@ -139,11 +177,11 @@ public class Parser {
                     }
                     mysar.hasifnode = true;
                 }
-                return 1;
+                return;
             }
 
             headerFound = 0;
-            return 1;
+            return;
         }
 
         try {
@@ -152,23 +190,23 @@ public class Parser {
                 val2 = new Float(matcher.nextToken());
                 val3 = new Float(matcher.nextToken());
                 sarCPU4.add(now, val1, val2, val3);
-                return 1;
+                return;
             }
             if (statType.equals("pgout/s")) {
                 val1 = new Float(lastHeader);
                 sarPGOUT4.add(now, val1);
-                return 1;
+                return;
             }
             if (statType.equals("pgin/s")) {
                 val1 = new Float(lastHeader);
                 val2 = new Float(matcher.nextToken());
                 val3 = new Float(matcher.nextToken());
                 sarPGIN4.add(now, val1, val2, val3);
-                return 1;
+                return;
             }
             if (statType.equals("device")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 blockSar mysarblock;
                 if (!mysar.disksSarList.containsKey(lastHeader + "-t1")) {
@@ -186,11 +224,11 @@ public class Parser {
                 val1 = new Float(matcher.nextToken());
                 val2 = new Float(matcher.nextToken());
                 mysarblock.add(now, val1, val2);
-                return 1;
+                return;
             }
             if (statType.equals("Ipkts/s")) { //DEV		tps	 rd_sec/s  wr_sec/s	 avgrq-sz	 avgqu-sz	  await		svctm	  %util
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 iface1Sar mysarif1;
                 iface2Sar mysarif2;
@@ -216,11 +254,11 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 mysarif1.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("Ierrs/s")) {
                 if (mysar.underaverage == 1) {
-                    return 1;
+                    return;
                 }
                 iface1Sar mysarif1;
                 iface2Sar mysarif2;
@@ -246,13 +284,11 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 mysarif2.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
         } catch (SeriesException e) {
-            System.out.println("Mac parser: " + e);
-            return -1;
+            throw new ParsingException("Mac parser: " + e);
         }
-        return 0;
     }
     kSar mysar;
     Float val1;

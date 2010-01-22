@@ -6,6 +6,10 @@ package net.atomique.ksar.Esar;
 
 import java.util.StringTokenizer;
 import javax.swing.tree.DefaultMutableTreeNode;
+
+import net.atomique.ksar.IOsSpecificParser;
+import net.atomique.ksar.OSInfo;
+import net.atomique.ksar.ParsingException;
 import net.atomique.ksar.diskName;
 import net.atomique.ksar.kSar;
 import org.jfree.data.general.SeriesException;
@@ -13,15 +17,51 @@ import org.jfree.data.time.Second;
 
 /**
  *
- * @author alex
+ * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
-public class Parser {
+public class Parser implements IOsSpecificParser {
 
     public Parser(kSar hissar) {
         mysar = hissar;
     }
 
-    public int parse(String thisLine, String first, StringTokenizer matcher) {
+    
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parseOsInfo(java.util.StringTokenizer)
+     */
+    @Override
+    public void parseOsInfo(StringTokenizer matcher) {
+        if (this.mysar.myOS == null) {
+            this.mysar.myOS = new OSInfo("Esar SunOS", "automatically");
+        }
+        
+        // skip sunos
+        matcher.nextToken();
+        
+        this.mysar.hostName = matcher.nextToken();
+        this.mysar.myOS.setHostname(this.mysar.hostName);
+        this.mysar.myOS.setOSversion(matcher.nextToken());
+        this.mysar.myOS.setKernel(matcher.nextToken());
+        this.mysar.myOS.setCpuType(matcher.nextToken());
+        
+        String sarDate = matcher.nextToken();
+        this.mysar.myOS.setDate(sarDate);
+        String[] dateSplit = sarDate.split("/");
+        if (dateSplit.length == 3) {
+            this.mysar.day = Integer.parseInt(dateSplit[1]);
+            this.mysar.month = Integer.parseInt(dateSplit[0]);
+            this.mysar.year = Integer.parseInt(dateSplit[2]);
+            if (this.mysar.year < 100) { // solaris 8 show date on two digit
+                this.mysar.year += 2000;
+            }
+        }
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IOsSpecificParser#parse(java.lang.String, java.lang.String, java.util.StringTokenizer)
+     */
+    @Override
+    public void parse(String thisLine, String first, StringTokenizer matcher) throws ParsingException {
         String prog;
         val1 = null;
         val2 = null;
@@ -44,7 +84,7 @@ public class Parser {
          */
 
         if (thisLine.indexOf("DISK ID") > 0) {
-            return 1;
+            return;
         }
         /*
         00:00:02 CPU  iget/s namei/s dirbk/s
@@ -61,7 +101,7 @@ public class Parser {
                 }
                 mysar.hasfilenode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("bread/s") > 0) {
             statType = "bread/s";
@@ -71,7 +111,7 @@ public class Parser {
                 }
                 mysar.hasbuffernode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("scall/s") > 0) {
             statType = "scall/s";
@@ -81,7 +121,7 @@ public class Parser {
                 }
                 mysar.hasscallnode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("avqr") > 0) {
             statType = "avqr";
@@ -91,7 +131,7 @@ public class Parser {
                 }
                 mysar.hasdisknode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("pgout/s") > 0) {
             statType = "pgout/s";
@@ -101,7 +141,7 @@ public class Parser {
                 }
                 mysar.haspaging1node = true;
             }
-            return 1;
+            return;
         }
         /*
         00:00:02 CPU   msg/s  sema/s
@@ -118,7 +158,7 @@ public class Parser {
                 }
                 mysar.hasmsgnode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("ppgin/s") > 0) {
             statType = "ppgin/s";
@@ -128,7 +168,7 @@ public class Parser {
                 }
                 mysar.haspaging2node = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("runq-sz") > 0) {
             statType = "runq-sz";
@@ -148,7 +188,7 @@ public class Parser {
                 mysar.pdfList.put("EsarSqueueSar", sarSQUEUE);
                 sarSQUEUE.setGraphLink("EsarSqueueSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("freemem") > 0) {
             statType = "freemem";
@@ -160,7 +200,7 @@ public class Parser {
                 mysar.pdfList.put("EsarmemSar", sarMEM);
                 sarMEM.setGraphLink("EsarmemSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("%w_io") > 0) {
             statType = "%w_io";
@@ -170,7 +210,7 @@ public class Parser {
                 }
                 mysar.hascpunode = true;
             }
-            return 1;
+            return;
         }
         /*
         00:00:02 CPU swpin/s bswin/s swpot/s bswot/s pswch/s
@@ -187,7 +227,7 @@ public class Parser {
                 }
                 mysar.hasswapingnode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("rawch/s") > 0) {
             statType = "rawch/s";
@@ -197,7 +237,7 @@ public class Parser {
                 }
                 mysar.hasttynode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("nproc") > 0) {
             statType = "nproc";
@@ -209,7 +249,7 @@ public class Parser {
                 mysar.pdfList.put("EsarloadSar", sarLOAD);
                 sarLOAD.setGraphLink("EsarloadSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("ipacket/s") > 0) {
             statType = "ipacket/s";
@@ -219,7 +259,7 @@ public class Parser {
                 }
                 mysar.hasifnode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("bcstrcv/s") > 0) {
             statType = "bcstrcv/s";
@@ -229,7 +269,7 @@ public class Parser {
                 }
                 mysar.hasifnode = true;
             }
-            return 1;
+            return;
         }
         /*
         00:00:02 pset     la1     la5    la15   ncpus
@@ -245,7 +285,7 @@ public class Parser {
                 }
                 mysar.haspsetnode = true;
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("RAWIP") > 0) {
             statType = "RAWIP";
@@ -257,7 +297,7 @@ public class Parser {
                 mysar.pdfList.put("EsarrawipSar", sarRAWIP);
                 sarRAWIP.setGraphLink("EsarrawipSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("UDP") > 0) {
             statType = "UDP";
@@ -269,7 +309,7 @@ public class Parser {
                 mysar.pdfList.put("EsarudpSar", sarUDP);
                 sarUDP.setGraphLink("EsarudpSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("TCP") > 0) {
             statType = "TCP";
@@ -281,7 +321,7 @@ public class Parser {
                 mysar.pdfList.put("EsartcpSar", sarTCP);
                 sarTCP.setGraphLink("EsartcpSar");
             }
-            return 1;
+            return;
         }
         /*
         00:00:02 RPCD(tcp) badcalls   badlen    calls   dupchk  dupreqs  nullrcv  xdrcall
@@ -299,7 +339,7 @@ public class Parser {
                 mysar.pdfList.put("EsarrpcdtcpSar", sarRPCDTCP);
                 sarRPCDTCP.setGraphLink("EsarrpcdtcpSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("RPC(tcp)") > 0) {
             statType = "RPC(tcp)";
@@ -311,7 +351,7 @@ public class Parser {
                 mysar.pdfList.put("EsarrpctcpSar", sarRPCTCP);
                 sarRPCTCP.setGraphLink("EsarrpctcpSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("RPCD(udp)") > 0) {
             statType = "RPCD(udp)";
@@ -323,7 +363,7 @@ public class Parser {
                 mysar.pdfList.put("EsarrpcdudpSar", sarRPCDUDP);
                 sarRPCDUDP.setGraphLink("EsarrpcdudpSar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("RPC(udp)") > 0) {
             statType = "RPC(udp)";
@@ -335,7 +375,7 @@ public class Parser {
                 mysar.pdfList.put("EsarrpcudpSar", sarRPCUDP);
                 sarRPCUDP.setGraphLink("EsarrpcudpSar");
             }
-            return 1;
+            return;
         }
         /*
         00:00:02 NFS v2   create     link   lookup    mkdir     read  readdir  readlnk   remove   rename    rmdir   symlnk    write
@@ -367,7 +407,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsv2Sar", sarNFSv2);
                 sarNFSv2.setGraphLink("Esarnfsv2Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFS v2  getattr") > 0) {
             statType = "NFSv22";
@@ -383,7 +423,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsv2Sar", sarNFSv2);
                 sarNFSv2.setGraphLink("Esarnfsv2Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v2   create") > 0) {
             statType = "NFSDv21";
@@ -399,7 +439,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsdv2Sar", sarNFSDv2);
                 sarNFSDv2.setGraphLink("Esarnfsdv2Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v2  getattr") > 0) {
             statType = "NFSDv22";
@@ -415,7 +455,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsdv2Sar", sarNFSDv2);
                 sarNFSDv2.setGraphLink("Esarnfsdv2Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFS v3   access") > 0) {
             statType = "NFSv31";
@@ -431,7 +471,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsv3Sar", sarNFSv3);
                 sarNFSv3.setGraphLink("Esarnfsv3Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFS v3   fsstat") > 0) {
             statType = "NFSv32";
@@ -447,7 +487,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsv3Sar", sarNFSv3);
                 sarNFSv3.setGraphLink("Esarnfsv3Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v3   access") > 0) {
             statType = "NFSDv31";
@@ -463,7 +503,7 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsdv3Sar", sarNFSDv3);
                 sarNFSDv3.setGraphLink("Esarnfsdv3Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v3   fsstat") > 0) {
             statType = "NFSDv32";
@@ -479,31 +519,31 @@ public class Parser {
                 mysar.pdfList.put("Esarnfsdv3Sar", sarNFSDv3);
                 sarNFSDv3.setGraphLink("Esarnfsdv3Sar");
             }
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFS v4   access") > 0) {
             statType = "NFSv41";
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFS v4   commit") > 0) {
             statType = "NFSv42";
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFS v4     lock") > 0) {
             statType = "NFSv43";
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v4   access") > 0) {
             statType = "NFSDv41";
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v4   commit") > 0) {
             statType = "NFSDv42";
-            return 1;
+            return;
         }
         if (thisLine.indexOf("NFSD v4     lock") > 0) {
             statType = "NFSDv43";
-            return 1;
+            return;
         }
         /*
         00:00:02     Total    Kernel    Locked     Avail
@@ -518,7 +558,7 @@ public class Parser {
                 mysar.pdfList.put("EsarmemorySar", sarMEMORY);
                 sarMEMORY.setGraphLink("EsarmemorySar");
             }
-            return 1;
+            return;
         }
         /*
         00:00:00 IP   inRcvs/s  inDlvrs/s  noPorts/s outRqsts/s
@@ -533,7 +573,7 @@ public class Parser {
                 mysar.pdfList.put("EsaripSar", sarIP);
                 sarIP.setGraphLink("EsaripSar");
             }
-            return 1;
+            return;
         } 
         /*
          *  PARSING
@@ -541,7 +581,7 @@ public class Parser {
 
         String[] sarTime = first.split(":");
         if (sarTime.length != 3) {
-            return 1;
+            return;
         } else {
             heure = Integer.parseInt(sarTime[0]);
             minute = Integer.parseInt(sarTime[1]);
@@ -587,7 +627,7 @@ public class Parser {
                 val6 = new Float(matcher.nextToken());
                 val7 = new Float(matcher.nextToken());
                 mysarcpu.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("namei/s")) {
                 String cpuid = matcher.nextToken();
@@ -607,7 +647,7 @@ public class Parser {
                 val2 = new Float(matcher.nextToken());
                 val3 = new Float(matcher.nextToken());
                 mysarfile.add(now, val1, val2, val3);
-                return 1;
+                return;
             }
 
             if (statType.equals("scall/s")) {
@@ -635,7 +675,7 @@ public class Parser {
                 val9 = new Float(matcher.nextToken());
                 val10 = new Float(matcher.nextToken());
                 mysarscall.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10);
-                return 1;
+                return;
             }
             if (statType.equals("bread/s")) {
                 String cpuid = matcher.nextToken();
@@ -660,7 +700,7 @@ public class Parser {
                 val7 = new Float(matcher.nextToken());
                 val8 = new Float(matcher.nextToken());
                 mysarbuffer.add(now, val1, val2, val3, val4, val5, val6, val7, val8);
-                return 1;
+                return;
             }
 
             if (statType.equals("avqr")) {
@@ -698,7 +738,7 @@ public class Parser {
                 val9 = new Float(matcher.nextToken());
                 mydiskxfer.add(now, val2, val3, val4, val5, val9);
                 mydiskwait.add(now, val1, val6, val7, val8);
-                return 1;
+                return;
             }
             if (statType.equals("pgout/s")) {
                 String cpuid = matcher.nextToken();
@@ -720,7 +760,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 mysarpaging1.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("sema/s")) {
                 String cpuid = matcher.nextToken();
@@ -739,7 +779,7 @@ public class Parser {
                 val1 = new Float(matcher.nextToken());
                 val2 = new Float(matcher.nextToken());
                 mysarmsg.add(now, val1, val2);
-                return 1;
+                return;
             }
             if (statType.equals("ppgin/s")) {
                 String cpuid = matcher.nextToken();
@@ -762,7 +802,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());
                 mysarpaging2.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
 
             if (statType.equals("runq-sz")) {
@@ -771,14 +811,14 @@ public class Parser {
                     val2 = new Float(matcher.nextToken());
                     sarRQUEUE.add(now, val1, val2);
                 } else {
-                    return 1;
+                    return;
                 }
                 if (matcher.hasMoreElements()) {
                     val3 = new Float(matcher.nextToken());
                     val4 = new Float(matcher.nextToken());
                     sarSQUEUE.add(now, val3, val4);
                 }
-                return 1;
+                return;
             }
             if (statType.equals("freemem")) {
                 val1 = new Float(matcher.nextToken());
@@ -787,7 +827,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarMEM.add(now, val1, val2);
-                return 1;
+                return;
             }
             if (statType.equals("swpin/s")) {
                 String cpuid = matcher.nextToken();
@@ -809,7 +849,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 mysarswaping.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("rawch/s")) {
                 String cpuid = matcher.nextToken();
@@ -832,7 +872,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());
                 mysartty.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             if (statType.equals("nproc")) {
                 val1 = new Float(matcher.nextToken());
@@ -840,7 +880,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarLOAD.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("ipacket/s")) {
                 String ifname = matcher.nextToken();
@@ -877,7 +917,7 @@ public class Parser {
                     val7 = new Float(tmpval7);
                 }
                 mysarif1.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("bcstrcv/s")) {
                 String ifname = matcher.nextToken();
@@ -909,7 +949,7 @@ public class Parser {
                 val6 = new Float(matcher.nextToken());
                 val7 = new Float(matcher.nextToken());
                 mysarif2.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("pset")) {
                 String psetid = matcher.nextToken();
@@ -930,7 +970,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 mysarpset.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("RAWIP")) {
                 val1 = new Float(matcher.nextToken());
@@ -939,7 +979,7 @@ public class Parser {
                 val4 = new Float(matcher.nextToken());
                 val5 = new Float(matcher.nextToken());
                 sarRAWIP.add(now, val1, val2, val3, val4, val5);
-                return 1;
+                return;
             }
             if (statType.equals("UDP")) {
                 val1 = new Float(matcher.nextToken());
@@ -947,7 +987,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarUDP.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("IP")) {
                 val1 = new Float(matcher.nextToken());
@@ -955,7 +995,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarIP.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("TCP")) {
                 val1 = new Float(matcher.nextToken());
@@ -967,7 +1007,7 @@ public class Parser {
                 val7 = new Float(matcher.nextToken());
                 val8 = new Float(matcher.nextToken());
                 sarTCP.add(now, val1, val2, val3, val4, val5, val6, val7, val8);
-                return 1;
+                return;
             }
             if (statType.equals("RPC(udp)")) {
                 val1 = new Float(matcher.nextToken());
@@ -981,7 +1021,7 @@ public class Parser {
                 val9 = new Float(matcher.nextToken());
                 val10 = new Float(matcher.nextToken());
                 sarRPCUDP.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10);
-                return 1;
+                return;
             }
             if (statType.equals("RPC(tcp)")) {
                 val1 = new Float(matcher.nextToken());
@@ -995,7 +1035,7 @@ public class Parser {
                 val9 = new Float(matcher.nextToken());
                 val10 = new Float(matcher.nextToken());
                 sarRPCTCP.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10);
-                return 1;
+                return;
             }
             if (statType.equals("RPCD(tcp)")) {
                 val1 = new Float(matcher.nextToken());
@@ -1006,7 +1046,7 @@ public class Parser {
                 val6 = new Float(matcher.nextToken());
                 val7 = new Float(matcher.nextToken());
                 sarRPCDTCP.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("RPCD(udp)")) {
                 val1 = new Float(matcher.nextToken());
@@ -1017,7 +1057,7 @@ public class Parser {
                 val6 = new Float(matcher.nextToken());
                 val7 = new Float(matcher.nextToken());
                 sarRPCDUDP.add(now, val1, val2, val3, val4, val5, val6, val7);
-                return 1;
+                return;
             }
             if (statType.equals("Locked")) {
                 val1 = new Float(matcher.nextToken());
@@ -1025,7 +1065,7 @@ public class Parser {
                 val3 = new Float(matcher.nextToken());
                 val4 = new Float(matcher.nextToken());
                 sarMEMORY.add(now, val1, val2, val3, val4);
-                return 1;
+                return;
             }
             if (statType.equals("NFSDv31")) {
                 val1 = new Float(matcher.nextToken());
@@ -1042,7 +1082,7 @@ public class Parser {
                 val12 = new Float(matcher.nextToken());
                 val13 = new Float(matcher.nextToken());
                 sarNFSDv3.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10, val11, val12, val13);
-                return 1;
+                return;
             }
             if (statType.equals("NFSDv32")) {
                 val1 = new Float(matcher.nextToken());
@@ -1055,7 +1095,7 @@ public class Parser {
                 val8 = new Float(matcher.nextToken());
                 val9 = new Float(matcher.nextToken());
                 sarNFSDv3.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9);
-                return 1;
+                return;
             }
             if (statType.equals("NFSv31")) {
                 val1 = new Float(matcher.nextToken());
@@ -1072,7 +1112,7 @@ public class Parser {
                 val12 = new Float(matcher.nextToken());
                 val13 = new Float(matcher.nextToken());
                 sarNFSv3.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10, val11, val12, val13);
-                return 1;
+                return;
             }
             if (statType.equals("NFSv32")) {
                 val1 = new Float(matcher.nextToken());
@@ -1085,7 +1125,7 @@ public class Parser {
                 val8 = new Float(matcher.nextToken());
                 val9 = new Float(matcher.nextToken());
                 sarNFSv3.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9);
-                return 1;
+                return;
             }
             if (statType.equals("NFSDv21")) {
                 val1 = new Float(matcher.nextToken());
@@ -1099,7 +1139,7 @@ public class Parser {
                 val9 = new Float(matcher.nextToken());
                 val10 = new Float(matcher.nextToken());                
                 sarNFSDv2.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10);
-                return 1;
+                return;
             }
             if (statType.equals("NFSDv22")) {
                 val1 = new Float(matcher.nextToken());
@@ -1109,7 +1149,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());                
                 sarNFSDv2.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             if (statType.equals("NFSv21")) {
                 val1 = new Float(matcher.nextToken());
@@ -1123,7 +1163,7 @@ public class Parser {
                 val9 = new Float(matcher.nextToken());
                 val10 = new Float(matcher.nextToken());                
                 sarNFSv2.add(now, val1, val2, val3, val4, val5, val6, val7, val8, val9, val10);
-                return 1;
+                return;
             }
             if (statType.equals("NFSv22")) {
                 val1 = new Float(matcher.nextToken());
@@ -1133,7 +1173,7 @@ public class Parser {
                 val5 = new Float(matcher.nextToken());
                 val6 = new Float(matcher.nextToken());                
                 sarNFSv2.add(now, val1, val2, val3, val4, val5, val6);
-                return 1;
+                return;
             }
             /*
              */
@@ -1141,10 +1181,8 @@ public class Parser {
         /*
          */
         } catch (SeriesException e) {
-            System.out.println("Esar parser: " + e);
-            return -1;
+            throw new ParsingException("Esar parser: " + e);
         }
-        return 0;
     }
     kSar mysar;
     Float val1;
