@@ -160,9 +160,8 @@ public class SshDataRetriever implements IDataRetriever {
         finally {
         	if (channel != null) {
         		channel.disconnect();
-        	}
-        	
-        	if (session != null) {
+        	} 
+        	else if (session != null) {
         		session.disconnect();
         	}
         }
