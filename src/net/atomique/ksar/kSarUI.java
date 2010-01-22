@@ -698,42 +698,19 @@ public class kSarUI extends javax.swing.JInternalFrame {
         }
     }//GEN-LAST:event_redobuttonActionPerformed
 
-    
-    private void save_tempfile() {
-        if ( mysar.tmpfile != null ) {
-            if ( mysar.tmpfile.length() > 0 ) {
-                String [] options = {"yes", "no"};
-                int foo = JOptionPane.showOptionDialog(this, "Would you like to save the sar file ?", "Warning", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, options, options[0]);
-                if ( foo == 0 ) {
-                    askSaveFilename tmp = new askSaveFilename(mysar);
-                    String savetostr =tmp.run();
-                    if ( savetostr != null ) {
-                        File saveto = new File(savetostr);
-                        SaveSar t=null;
-                        try {
-                            t = new SaveSar(mysar.tmpfile,saveto);
-                        } catch (IOException ioe) {}
-                        t=null;
-                    }
-                    tmp=null;
-                }
-            }
-        }        
-    }
-    
     private void formInternalFrameClosing(javax.swing.event.InternalFrameEvent evt) {//GEN-FIRST:event_formInternalFrameClosing
-        // TODO: stop running update
+        if (this.mysar.isUpdateInProgress()) {
+            this.mysar.cancelUpdate();
+        }
 
-        save_tempfile();
         this.dispose();
-        mysar.cleanup_temp();
         mysar.resetInfo();
         mysar.myUI=null;
         mysar = null;
     }//GEN-LAST:event_formInternalFrameClosing
 
     private void exporttxtmenuActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exporttxtmenuActionPerformed
-        save_tempfile();
+        // TODO: implement me!
     }//GEN-LAST:event_exporttxtmenuActionPerformed
 
     private void chkbox_stackintrActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chkbox_stackintrActionPerformed
