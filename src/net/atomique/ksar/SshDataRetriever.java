@@ -251,8 +251,8 @@ public class SshDataRetriever implements IDataRetriever {
 		
 		// Connection
 		if (this.promptForData 
-				|| this.user == null
-				|| this.password == null) {
+		        || this.host == null
+				|| this.user == null) {
 			this.requestConnection();
 		}
 		
