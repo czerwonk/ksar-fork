@@ -688,9 +688,15 @@ public class kSarUI extends javax.swing.JInternalFrame {
 
     private void redobuttonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_redobuttonActionPerformed
         redobutton.setEnabled(false);
-        if ("Redo".equals(redobutton.getText())) {
+        
+        if (redobutton.getText().equals("Redo")) {
             if (mysar.validateRedoCommand(mysar.reload_command)) {
                 mysar.updateDataByCommand(mysar.reload_command);
+            }
+        }
+        else if (redobutton.getText().equals("Stop")) {
+            if (this.mysar.isUpdateInProgress()) {
+                this.mysar.cancelUpdate();
             }
         }
     }//GEN-LAST:event_redobuttonActionPerformed

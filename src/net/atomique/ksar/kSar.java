@@ -41,7 +41,7 @@ public class kSar {
     private final IMessageCreator messageCreator;
     private final Semaphore semaphore;
     private String selectionPath;
-    private SwingWorker<Void, Void> swingWorker;
+    private SwingWorker<Reader, Void> swingWorker;
     
     
     private kSar() {
@@ -67,7 +67,7 @@ public class kSar {
     public kSar(String title) {
         this();
         
-        if ( ! validateRedoCommand(title)) {
+        if (!validateRedoCommand(title)) {
             System.err.println("Cannot process input: " + title);
             return;
         }
@@ -97,27 +97,26 @@ public class kSar {
     public synchronized void cancelUpdate() {
         if (this.swingWorker != null) {
             this.swingWorker.cancel(true);
+            this.tell_parsing(false);
         }
     }
     
     private <T extends IDataRetriever> void runUpdate(final T dataRetriever, 
                                                       final IDataRetrievingSuccessfulHandler<T> handler) {
         if (myUI != null) {
-            changemenu(false);
+            this.changemenu(false);
         }
 
         tell_parsing(true);
         
-        this.swingWorker = new SwingWorker<Void, Void>() {
+        this.swingWorker = new SwingWorker<Reader, Void>() {
 
             @Override
-            protected Void doInBackground() throws Exception {
+            protected Reader doInBackground() throws Exception {
                 semaphore.acquire();
                 
                 try {   
-                    updateData(dataRetriever);
-                    handler.afterCompleted(dataRetriever);
-                    return null;
+                    return dataRetriever.getData();
                 }
                 finally {
                     semaphore.release();
@@ -126,8 +125,14 @@ public class kSar {
             
             @Override
             protected void done() {
+                if (isCancelled()) {
+                    return;
+                }
+                
                 try {
-                    get();
+                    updateData(get());
+                    handler.afterCompleted(dataRetriever);
+                    reload_command = dataRetriever.getRedoCommand();
                     
                     doclosetrigger();
                     myUI.trySelectByPathString(selectionPath);
@@ -137,13 +142,15 @@ public class kSar {
                 catch (InterruptedException ex) {
                     // interuptions should be logged in future
                 }
+                catch (ParsingException ex) {
+                    messageCreator.showErrorMessage("Error", ex.getMessage());
+                }
+                catch (IOException ex) {
+                    messageCreator.showErrorMessage("Error", ex.getMessage());
+                }
                 catch (ExecutionException ex) {
-                    if (ex.getCause() instanceof DataRetrievingFailedException 
-                            || ex.getCause() instanceof ParsingException) {
+                    if (ex.getCause() instanceof DataRetrievingFailedException) {
                         messageCreator.showErrorMessage("Error", ex.getCause().getMessage());
-                    }
-                    else if (ex.getCause() instanceof IOException) {
-                        messageCreator.showErrorMessage("Error", "Error while parsing data.");
                     }
                     else {
                         ex.getCause().printStackTrace();
@@ -159,21 +166,17 @@ public class kSar {
         this.swingWorker.execute();
     }
     
-    private void updateData(IDataRetriever dataRetriever) throws DataRetrievingFailedException, IOException, ParsingException {
+    private void updateData(Reader reader) throws IOException, ParsingException {
+        if (reader == null) {
+            throw new IOException("No data found.");
+        }
+        
         BufferedReader bufferedReader = null;
         
-        try {
-            Reader reader = dataRetriever.getData();
-            
-            if (reader == null) {
-                throw new DataRetrievingFailedException("No data found.");
-            }
-            
+        try {    
             bufferedReader = new BufferedReader(reader);
             this.resetInfo();
             this.parse(bufferedReader);
-            
-            this.reload_command = dataRetriever.getRedoCommand();
         }
         finally {
             if (bufferedReader != null) {
@@ -266,7 +269,7 @@ public class kSar {
 
     public boolean validateRedoCommand(String command) {
         if (command.startsWith("file://")) {
-            String[] spilltedCommand = command.split("\\w://");
+            String[] spilltedCommand = command.split("\\w+://");
             return new File(spilltedCommand[1]).exists();
         }
         
