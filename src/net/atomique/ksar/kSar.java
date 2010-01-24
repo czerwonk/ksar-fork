@@ -55,7 +55,7 @@ public class kSar {
             public void run() {
                 if (!reload_command.equals("Empty")) {
                     selectionPath = myUI.getSelectionPath();
-                    do_mission(reload_command);
+                    updateDataByCommand(reload_command);
                 }
             }
             
@@ -67,12 +67,12 @@ public class kSar {
     public kSar(String title) {
         this();
         
-        if ( ! parse_mission(title)) {
+        if ( ! validateRedoCommand(title)) {
             System.err.println("Cannot process input: " + title);
             return;
         }
         
-        do_mission(title);
+        updateDataByCommand(title);
     }
 
     public kSar(kSarDesktop hisdesktop, String title) {
@@ -80,13 +80,13 @@ public class kSar {
         
         mydesktop = hisdesktop;
         
-        if (!parse_mission(title)) {
+        if (!validateRedoCommand(title)) {
             System.err.println("Cannot process input: " + title);
             return;
         }
         
         addGUI(title);
-        do_mission(title);
+        updateDataByCommand(title);
     }
     
     
@@ -187,7 +187,7 @@ public class kSar {
         }
     }
     
-    public void do_fileread(String filename) {
+    public void readDataFromFile(String filename) {
         FileSystemDataRetriever dataRetriever = ((filename == null) ? new FileSystemDataRetriever(this.config.getLastFile(), true)
                                                                     : new FileSystemDataRetriever(new File(filename), false));
         
@@ -201,7 +201,7 @@ public class kSar {
                        });
     }
 
-    public void do_sshread(String cmd) {
+    public void readDataFromSsh(String cmd) {
         SshDataRetriever dataRetriever = ((cmd == null) ? new SshDataRetriever(this.config.getLastSshServer(), 
                                                                                this.config.getLastSshCommand(), 
                                                                                this.messageCreator)
@@ -218,7 +218,7 @@ public class kSar {
                        });
     }
     
-    public void do_localcommand(String cmd) {
+    public void executeLocalCommand(String cmd) {
         LocalProcessDataRetriever dataRetriever = ((cmd == null) ? new LocalProcessDataRetriever(this.config.getLastCommand(), true)
                                                                  : new LocalProcessDataRetriever(cmd, false));
         
@@ -232,28 +232,24 @@ public class kSar {
                        });
     }
 
-    public void do_mission(String title) {
-        if ( "Empty".equals(title) ) {
+    public void updateDataByCommand(String command) {
+        if (command.equals("Empty")) {
             return;
         }
-        if (title.startsWith("file://")) {
-            String filename = new String(title.substring(7));
-            do_fileread(filename);
-            return;
+        else if (command.startsWith("file://")) {
+            String filename = new String(command.substring(7));
+            readDataFromFile(filename);
         }        
-        if (title.startsWith("cmd://")) {
-            String commandname = new String(title.substring(6));
-            get_processlist(title);
-            do_localcommand(commandname);
-            return;
+        else if (command.startsWith("cmd://")) {
+            String commandname = new String(command.substring(6));
+            get_processlist(command);
+            executeLocalCommand(commandname);
         }
-        if (title.startsWith("ssh://")) {
-            String commandname = new String(title.substring(6));
-            get_processlist(title);
-            do_sshread(commandname);
-            return;
+        else if (command.startsWith("ssh://")) {
+            String commandname = new String(command.substring(6));
+            get_processlist(command);
+            readDataFromSsh(commandname);
         }
-        do_fileread(title);
     }
 
     private void get_processlist(String orig) {
@@ -267,30 +263,14 @@ public class kSar {
         }
         
     }
-    
-    private boolean testfile(String filepath) {
-        if (!new File(filepath).exists()) {
-            return false;
-        } else {
-            return true;
-        }
-    }
 
-    public boolean parse_mission(String mission) {
-        // Empty is open by GUI skipping testing
-        if ("Empty".equals(mission)) {
-            return true;
+    public boolean validateRedoCommand(String command) {
+        if (command.startsWith("file://")) {
+            String[] spilltedCommand = command.split("\\w://");
+            return new File(spilltedCommand[1]).exists();
         }
-        // parse command line input string
-        if (mission.startsWith("file://")) {
-            return testfile(mission.substring(7));
-        } else if (mission.startsWith("ssh://")) {
-            return true;
-        } else if (mission.startsWith("cmd://")) {
-            return true;
-        } else {
-            return testfile(mission);
-        }
+        
+        return true;
     }
 
     public void setPageSize() {
@@ -483,9 +463,6 @@ public class kSar {
         }
     }
 
-    
-    
-    
     public void resetInfo() {
         if ( myUI != null ) {
             myUI.setTitle("Empty");

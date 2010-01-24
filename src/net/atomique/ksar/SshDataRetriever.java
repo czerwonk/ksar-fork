@@ -65,7 +65,7 @@ public class SshDataRetriever implements IDataRetriever {
 	public SshDataRetriever(String redoCommand, IMessageCreator messageCreator) {
 		this(false, messageCreator);
 
-		this.parseRedoCommand(command);
+		this.parseRedoCommand(redoCommand);
 	}
 
 	
@@ -134,8 +134,11 @@ public class SshDataRetriever implements IDataRetriever {
 	public Reader getData() throws DataRetrievingFailedException {
 		Session session = connect();
 		
-		this.requestCommand();
-        
+		if (this.promptForData 
+		        || this.command == null) {
+	        this.requestCommand();		    
+		}
+       
 		ChannelExec channel = null;
 		
         try {
