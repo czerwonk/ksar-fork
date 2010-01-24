@@ -1,14 +1,12 @@
 package net.atomique.ksar;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -149,7 +147,7 @@ public class SshDataRetriever implements IDataRetriever {
 			channel.connect();
 			this.addCommandToLastUsed();
 			
-			return this.readToString(channel.getInputStream());
+			return this.readToMemory(channel.getInputStream());
 		} 
         catch (IOException ex) {
         	throw new DataRetrievingFailedException("Could not execute command.", ex);
@@ -167,17 +165,13 @@ public class SshDataRetriever implements IDataRetriever {
         }
 	}
 	
-	private Reader readToString(InputStream inputStream) throws IOException, DataRetrievingFailedException {
-		Reader reader = new InputStreamReader(inputStream);
-		BufferedReader bufferedReader = new BufferedReader(reader);
-	
-		StringWriter writer = new StringWriter();
-		BufferedWriter bufferedWriter = new BufferedWriter(writer);
-	
+	private Reader readToMemory(InputStream inputStream) throws IOException, DataRetrievingFailedException {
+	    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
 		try {
 			int secondsWaited = 0;
-			
-			while (!bufferedReader.ready()) {
+
+			while (inputStream.available() < 1) {
 				if (secondsWaited >= MAX_READY_TIMEOUT) 
 				{
 					throw new DataRetrievingFailedException("Could not read from stream.");
@@ -192,33 +186,35 @@ public class SshDataRetriever implements IDataRetriever {
 				secondsWaited++;
 			}
 			
-			String line = null;
+			int bytesRead = 0;
+			byte[] buffer = new byte[2048];
 			
-			while ((line = bufferedReader.readLine()) != null) {
-				bufferedWriter.append(line);
-				bufferedWriter.newLine();
+			while ((bytesRead = inputStream.read(buffer)) > 0) {
+				outputStream.write(buffer, 0, bytesRead);
+				outputStream.flush();
 			}
 			
-			return new StringReader(writer.getBuffer().toString());
+			InputStream stream = new ByteArrayInputStream(outputStream.toByteArray());
+			return new InputStreamReader(stream);
 		}
 		finally {
-			if (bufferedReader != null) {
-				try {
-					bufferedReader.close();					
-				}
-				catch (IOException ex) {
-					// this exception would hide the exception thrown in outer try block
-				}
-			}
-			
-			if (bufferedWriter != null) {
-				try {
-					bufferedWriter.close();
-				}
-				catch (IOException ex) {
-					// this exception would hide the exception thrown in outer try
-				}
-			}
+		    if (inputStream != null) {
+		        try {
+                  inputStream.close();             
+                }
+                catch (IOException ex) {
+                    // this exception would hide the exception thrown in outer try block
+                }
+		    }
+		    
+		    if (outputStream != null) {
+                try {
+                    outputStream.close();             
+                }
+                catch (IOException ex) {
+                    // this exception would hide the exception thrown in outer try block
+                }		        
+		    }
 		}
 	}
 
