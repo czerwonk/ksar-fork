@@ -97,7 +97,6 @@ public class kSar {
     public synchronized void cancelUpdate() {
         if (this.swingWorker != null) {
             this.swingWorker.cancel(true);
-            this.tell_parsing(false);
         }
     }
     
@@ -107,7 +106,7 @@ public class kSar {
             this.changemenu(false);
         }
 
-        tell_parsing(true);
+        this.tell_parsing(true);
         
         this.swingWorker = new SwingWorker<Reader, Void>() {
 
@@ -115,21 +114,17 @@ public class kSar {
             protected Reader doInBackground() throws Exception {
                 semaphore.acquire();
                 
-                try {   
-                    return dataRetriever.getData();
-                }
-                finally {
-                    semaphore.release();
-                }
+                return dataRetriever.getData();
             }
             
             @Override
             protected void done() {
-                if (isCancelled()) {
-                    return;
-                }
-                
                 try {
+                    if (isCancelled()) {
+                        resetInfo();
+                        return;
+                    }
+                    
                     updateData(get());
                     handler.afterCompleted(dataRetriever);
                     reload_command = dataRetriever.getRedoCommand();
@@ -158,6 +153,8 @@ public class kSar {
                     }
                 }
                 finally {
+                    semaphore.release();
+                    
                     tell_parsing(false);
                 }
             }
