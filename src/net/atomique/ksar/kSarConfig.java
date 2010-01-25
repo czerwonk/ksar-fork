@@ -250,6 +250,8 @@ public class kSarConfig {
         norefresh = myPref.getInt("norefresh", 5000); // ts les 100
         somerefresh_time = myPref.getInt("somerefresh_time", 10);
         lessrefresh_time = myPref.getInt("lessrefresh_time", 100);
+        
+        autoDataUpdateInterval = myPref.getLong("AutoDataUpdateInterval", 300000);
     }
     
     static public void writeDefault() {
@@ -418,6 +420,8 @@ public class kSarConfig {
          
          myPref.put("landf", landf);
         
+         myPref.putLong("AutoDataUpdateInterval", autoDataUpdateInterval);
+         
         if ( pref_to_flush != null ) {
             myPref.remove(pref_to_flush);
         }
@@ -607,5 +611,17 @@ public class kSarConfig {
     public static final Font DEFAULT_FONT = new Font("SansSerif", Font.BOLD, 18);
     public static final BasicStroke DEFAULT_STROKE = new BasicStroke(1.0f);
 
+    private static long autoDataUpdateInterval;
     
+    /**
+     * Gets the time used as interval for updating data
+     * @return Interval in milliseconds or 0 (0 = inactive) 
+     */
+    public static long getAutoDataUpdateInterval() {
+    	return autoDataUpdateInterval;
+    }
+
+    public static void setAutoDataUpdateInterval(long interval) {
+    	autoDataUpdateInterval = interval;
+    }
 }
