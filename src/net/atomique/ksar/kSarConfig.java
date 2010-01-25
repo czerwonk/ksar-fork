@@ -17,12 +17,13 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import javax.swing.JOptionPane;
 import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
 
 /**
  *
  * @author alex, Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
-public class kSarConfig {
+public class kSarConfig implements IConfigurationViewModel {
 
     private static kSarConfig instance = new kSarConfig();
 
@@ -251,7 +252,7 @@ public class kSarConfig {
         somerefresh_time = myPref.getInt("somerefresh_time", 10);
         lessrefresh_time = myPref.getInt("lessrefresh_time", 100);
         
-        autoDataUpdateInterval = myPref.getLong("AutoDataUpdateInterval", 300000);
+        dataUpdateInterval = myPref.getLong("AutoDataUpdateInterval", 300000);
     }
     
     static public void writeDefault() {
@@ -420,7 +421,7 @@ public class kSarConfig {
          
          myPref.put("landf", landf);
         
-         myPref.putLong("AutoDataUpdateInterval", autoDataUpdateInterval);
+         myPref.putLong("AutoDataUpdateInterval", dataUpdateInterval);
          
         if ( pref_to_flush != null ) {
             myPref.remove(pref_to_flush);
@@ -611,17 +612,181 @@ public class kSarConfig {
     public static final Font DEFAULT_FONT = new Font("SansSerif", Font.BOLD, 18);
     public static final BasicStroke DEFAULT_STROKE = new BasicStroke(1.0f);
 
-    private static long autoDataUpdateInterval;
+    private static long dataUpdateInterval;
     
-    /**
-     * Gets the time used as interval for updating data
-     * @return Interval in milliseconds or 0 (0 = inactive) 
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getBackgroundImageFile()
      */
-    public static long getAutoDataUpdateInterval() {
-    	return autoDataUpdateInterval;
+    @Override
+    public File getBackgroundImageFile() {
+        return background_image;
     }
 
-    public static void setAutoDataUpdateInterval(long interval) {
-    	autoDataUpdateInterval = interval;
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getDataUpdateInterval()
+     */
+    @Override
+    public long getDataUpdateInterval() {
+        return dataUpdateInterval;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getImageHeight()
+     */
+    @Override
+    public int getImageHeight() {
+        return imageheight;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getImageWidth()
+     */
+    @Override
+    public int getImageWidth() {
+        return imagewidth;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getLookAndFeel()
+     */
+    @Override
+    public String getLookAndFeel() {
+        return landf;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getPdfBottomText()
+     */
+    @Override
+    public String getPdfBottomText() {
+        return pdfbottomleft;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getPdfIndexPageText()
+     */
+    @Override
+    public String getPdfIndexPageText() {
+        return pdfindexpage;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getPdfUpperRightText()
+     */
+    @Override
+    public String getPdfUpperRightText() {
+        return pdfupperright;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#getSshKeyFile()
+     */
+    @Override
+    public File getSshKeyFile() {
+        return sshidentity;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#isHtmlIndexEnabled()
+     */
+    @Override
+    public boolean isHtmlIndexEnabled() {
+        return imagehtml;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#isSshStrictHostCheckEnabled()
+     */
+    @Override
+    public boolean isSshStrictHostCheckEnabled() {
+        return ssh_stricthostchecking;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setBackgroundImageFile(java.io.File)
+     */
+    @Override
+    public void setBackgroundImageFile(File file) {
+        background_image = file;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setDataUpdateInterval(long)
+     */
+    @Override
+    public void setDataUpdateInterval(long value) {
+        dataUpdateInterval = value;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setHtmlIndexEnabled(boolean)
+     */
+    @Override
+    public void setHtmlIndexEnabled(boolean value) {
+        imagehtml = value;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setImageHeight(int)
+     */
+    @Override
+    public void setImageHeight(int value) {
+        imageheight = value;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setImageWidth(int)
+     */
+    @Override
+    public void setImageWidth(int value) {
+        imagewidth = value;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setLookAndFeel(javax.swing.UIManager.LookAndFeelInfo)
+     */
+    @Override
+    public void setLookAndFeel(String lookAndFeel) {
+        landf = lookAndFeel;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setPdfBottomText(java.lang.String)
+     */
+    @Override
+    public void setPdfBottomText(String text) {
+        pdfbottomleft = text;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setPdfIndexPageText(java.lang.String)
+     */
+    @Override
+    public void setPdfIndexPageText(String text) {
+        pdfindexpage = text;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setPdfUpperRightText(java.lang.String)
+     */
+    @Override
+    public void setPdfUpperRightText(String text) {
+        pdfupperright = text;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setSshKeyFile(java.io.File)
+     */
+    @Override
+    public void setSshKeyFile(File file) {
+        sshidentity = file;
+    }
+
+    /* (non-Javadoc)
+     * @see net.atomique.ksar.IConfigurationViewModel#setSshStrictHostCheckEnabled(boolean)
+     */
+    @Override
+    public void setSshStrictHostCheckEnabled(boolean value) {
+        ssh_stricthostchecking = value;
     }
 }

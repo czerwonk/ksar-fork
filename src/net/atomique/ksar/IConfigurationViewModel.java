@@ -2,8 +2,6 @@ package net.atomique.ksar;
 
 import java.io.File;
 
-import javax.swing.LookAndFeel;
-
 public interface IConfigurationViewModel {
 
 	int getImageWidth();
@@ -12,8 +10,8 @@ public interface IConfigurationViewModel {
 	int getImageHeight();
 	void setImageHeight(int value);
 	
-	LookAndFeel getLookAndFeel();
-	void setLookAndFeel(LookAndFeel lookAndFeel);
+	String getLookAndFeel();
+	void setLookAndFeel(String lookAndFeel);
 	
 	boolean isHtmlIndexEnabled();
 	void setHtmlIndexEnabled(boolean value);

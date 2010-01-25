@@ -1,38 +1,77 @@
-/*
- * ConfigurationDialog.java
- *
- * Created on __DATE__, __TIME__
- */
-
 package net.atomique.ksar;
 
 import java.io.File;
 
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JFileChooser;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
 
 /**
  * @author Daniel Czerwonk <d.czerwonk@googlemail.com>
  */
-public class ConfigurationDialog extends javax.swing.JFrame {
+public class ConfigurationDialog extends javax.swing.JDialog {
 
 	private static final long serialVersionUID = -6484950105485229743L;
-
+	public static final int OK_RESULT = 0;
+	public static final int CANCEL_RESULT = 1;
+	
 	private final IConfigurationViewModel configuration;
+	private File backgroundImageFile;
+	private File sshKeyFile;
+	public int result;
 
+	
 	/**
 	 * Creates an instance of ConfigurationDialog
 	 */
 	public ConfigurationDialog(IConfigurationViewModel configuration) {
 		initComponents();
-
+		
 		this.configuration = configuration;
+        this.backgroundImageFile = configuration.getBackgroundImageFile();
+        this.sshKeyFile = configuration.getSshKeyFile();
+        
+        this.initLookAndFeelComboBox();
 		this.refreshUi();
 	}
+	
 
-	private void refreshUi() {
+	public int getResult() {
+	    return this.result;
+	}
+	
+    private void initLookAndFeelComboBox() {
+        DefaultComboBoxModel model = new DefaultComboBoxModel();
+        
+        for (LookAndFeelInfo lookAndFeel : UIManager.getInstalledLookAndFeels()) {
+            model.addElement(lookAndFeel.getName());
+        }
+        
+        this.lafComboBox.setModel(model);
+    }
+
+    private void refreshUi() {
 		this.imageHeightSpinner.setValue(this.configuration.getImageHeight());
 		this.imageWidthSpinner.setValue(this.configuration.getImageWidth());
 		this.lafComboBox.setSelectedItem(this.configuration.getLookAndFeel());
+		this.htmlIndexCheckBox.setSelected(this.configuration.isHtmlIndexEnabled());
+		this.pdfBottomTextField.setText(this.configuration.getPdfBottomText());
+		this.pdfUpperTextField.setText(this.configuration.getPdfUpperRightText());
+		this.pdfIndexTextField.setText(this.configuration.getPdfIndexPageText());
+		
+		if (this.configuration.getBackgroundImageFile() != null
+		        && this.configuration.getBackgroundImageFile().exists()) {
+		    this.backgroundImageTextField.setText(this.configuration.getBackgroundImageFile().toString());
+		}
+		
+		if (this.configuration.getSshKeyFile() != null
+		        && this.configuration.getSshKeyFile().exists()) {
+		    this.sshKeyTextField.setText(this.configuration.getSshKeyFile().toString());
+		}
+		
+		this.sshStrictHostCheckCheckBox.setSelected(this.configuration.isSshStrictHostCheckEnabled());
+		this.dataUpdateIntervalSpinner.setValue(this.configuration.getDataUpdateInterval());
 	}
 
 	/** This method is called from within the constructor to
@@ -249,6 +288,18 @@ public class ConfigurationDialog extends javax.swing.JFrame {
 	}
 
 	private void okButtonActionPerformed(java.awt.event.ActionEvent evt) {
+	    this.configuration.setImageHeight((Integer)this.imageHeightSpinner.getValue());
+	    this.configuration.setImageWidth((Integer)this.imageWidthSpinner.getValue());
+	    this.configuration.setLookAndFeel((String)this.lafComboBox.getSelectedItem());
+	    this.configuration.setHtmlIndexEnabled(this.htmlIndexCheckBox.isSelected());
+	    this.configuration.setPdfUpperRightText(this.pdfUpperTextField.getText());
+	    this.configuration.setPdfBottomText(this.pdfBottomTextField.getText());
+	    this.configuration.setPdfIndexPageText(this.pdfIndexTextField.getText());
+	    this.configuration.setBackgroundImageFile(this.backgroundImageFile);
+	    this.configuration.setSshKeyFile(this.sshKeyFile);
+	    this.configuration.setSshStrictHostCheckEnabled(this.sshStrictHostCheckCheckBox.isSelected());
+	    this.configuration.setDataUpdateInterval((Long)this.dataUpdateIntervalSpinner.getValue());
+	    
 		this.dispose();
 	}
 
@@ -259,6 +310,7 @@ public class ConfigurationDialog extends javax.swing.JFrame {
 
 		if (value != null) {
 			this.backgroundImageTextField.setText(value.toString());
+			this.backgroundImageFile = value;
 		}
 	}
 
@@ -268,6 +320,7 @@ public class ConfigurationDialog extends javax.swing.JFrame {
 
 		if (value != null) {
 			this.sshKeyTextField.setText(value.toString());
+			this.sshKeyFile = value;
 		}
 	}
 

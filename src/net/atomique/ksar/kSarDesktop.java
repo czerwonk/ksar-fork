@@ -17,6 +17,12 @@ import javax.swing.JDesktopPane;
 import javax.swing.JInternalFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.LookAndFeel;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.UIManager.LookAndFeelInfo;
 
 /**
  *
@@ -281,12 +287,27 @@ public class kSarDesktop extends javax.swing.JFrame {
     }//GEN-LAST:event_checkforupdateActionPerformed
 
     private void alloptionsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_alloptionsActionPerformed
-        AllOptionsForm tmpoptions = new AllOptionsForm(this);
-        tmpoptions.setVisible(true);
-        desktopPane.add(tmpoptions);
-        try {
-            tmpoptions.setSelected(true);
-        } catch (java.beans.PropertyVetoException vetoe) {
+        IConfigurationViewModel configurationViewModel = kSarConfig.getInstance();
+        ConfigurationDialog configDialog = new ConfigurationDialog(configurationViewModel);
+        configDialog.setModal(true);
+        configDialog.setVisible(true);
+        
+        if (configDialog.getResult() == ConfigurationDialog.OK_RESULT) {
+            kSarConfig.writeDefault();
+            
+            try {
+                for (LookAndFeelInfo lookAndFeel : UIManager.getInstalledLookAndFeels()) {
+                    if (lookAndFeel.getName().equals(configurationViewModel.getLookAndFeel())) {
+                        UIManager.setLookAndFeel(lookAndFeel.getClassName());
+                        break;
+                    }
+                }
+
+                SwingUtilities.updateComponentTreeUI(this);
+            }
+            catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
 }//GEN-LAST:event_alloptionsActionPerformed
 
