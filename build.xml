@@ -13,7 +13,7 @@
             <zipfileset excludes="META-INF/*.SF" src="lib/jcommon-1.0.16.jar"/>
         </jar>
     	<signjar jar="target/kSar.jar"
-    	         alias="Daniel Czerwonk"
+    	         alias="${sign.alias}"
     		     keystore="${sign.keypath}"
     		     storepass="${sign.pass}" />
     </target>
