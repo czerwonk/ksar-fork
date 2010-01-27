@@ -24,17 +24,18 @@ public class ConfigurationDialog extends javax.swing.JDialog {
 	
 	/**
 	 * Creates an instance of ConfigurationDialog
+	 * @param configuration
 	 */
 	public ConfigurationDialog(IConfigurationViewModel configuration) {
-		initComponents();
-		
-		this.configuration = configuration;
-        this.backgroundImageFile = configuration.getBackgroundImageFile();
-        this.sshKeyFile = configuration.getSshKeyFile();
-        
-        this.initLookAndFeelComboBox();
-		this.refreshUi();
-	}
+	    this.initComponents();
+	        
+	    this.configuration = configuration;
+	    this.backgroundImageFile = configuration.getBackgroundImageFile();
+	    this.sshKeyFile = configuration.getSshKeyFile();
+	        
+	    this.initLookAndFeelComboBox();
+	    this.refreshUi();
+    }
 	
 
 	public int getResult() {

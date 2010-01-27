@@ -17,7 +17,6 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import javax.swing.JOptionPane;
 import javax.swing.UIManager;
-import javax.swing.UIManager.LookAndFeelInfo;
 
 /**
  *
