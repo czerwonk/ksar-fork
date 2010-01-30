@@ -3,9 +3,7 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="res"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="lib/jsch-0.1.42.jar"/>
-	<classpathentry kind="lib" path="lib/jfreechart-1.0.13.jar"/>
-	<classpathentry kind="lib" path="lib/jcommon-1.0.16.jar"/>
-	<classpathentry kind="lib" path="lib/iText-2.1.5.jar"/>
+	<classpathentry kind="con" path="org.apache.ivyde.eclipse.cpcontainer.IVYDE_CONTAINER/?ivyXmlPath=ivy.xml&amp;confs=*"/>
+	<classpathentry kind="con" path="org.apache.ivyde.eclipse.cpcontainer.IVYDE_CONTAINER/?ivyXmlPath=build.xml&amp;confs=*"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

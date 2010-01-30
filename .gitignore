@@ -1,4 +1,5 @@
 bin/
 .myeclipse
 .DS_Store
-target/
+release/
+lib/

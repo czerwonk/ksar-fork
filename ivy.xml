@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<ivy-module version="2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="http://ant.apache.org/ivy/schemas/ivy.xsd">
+    <info
+        organisation="de.dan_nrw"
+        module="kSar"
+        status="integration">
+	</info>
+	<dependencies>
+	   <dependency org="jfree" name="jfreechart" rev="latest.integration"/>
+	   <dependency org="com.jcraft" name="jsch" rev="latest.integration"/>
+	   <dependency org="org.swinglabs" name="swing-layout" rev="latest.integration"/>
+	   <dependency org="com.lowagie" name="itext" rev="latest.integration"/>
+	</dependencies>
+</ivy-module>

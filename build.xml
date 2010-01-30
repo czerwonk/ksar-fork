@@ -1,20 +1,56 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<project default="create_run_jar" name="ksar">
-    <target name="create_run_jar">
-        <jar destfile="target/kSar.jar" filesetmanifest="mergewithoutmain">
+<project default="release" name="ksar" xmlns:ivy="antlib:org.apache.ivy.ant">
+	<property name="build.target.dir" value="release/" />
+	<property name="build.output.dir" value="bin/" />
+	<property name="build.lib.dir" value="lib/" />
+	<property name="build.src.dir" value="src/" />
+	<property name="build.res.dir" value="res/" />
+	<property name="build.jar.mainclass" value="net.atomique.ksar.Main" />
+	<property name="build.jar.file" value="kSar.jar" />
+	<target name="create_target_dir">
+        <delete dir="${build.target.dir}"/>
+        <mkdir dir="${build.target.dir}"/>
+	</target>
+	<target name="clean_up">
+	    <delete dir="${build.output.dir}"/>
+		<delete dir="${build.lib.dir}"/>
+	</target>
+	<target name="retrieve_deps">
+	    <ivy:retrieve />
+	</target>
+	<target name="build">
+		<mkdir dir="${build.output.dir}" />
+	    <javac srcdir="${build.src.dir}"
+	    	   destdir="${build.output.dir}">
+	        <classpath>
+	            <fileset dir="${build.lib.dir}" />
+	        </classpath>
+	    </javac>
+	</target>
+    <target name="create_signed_jar" depends="create_target_dir">
+    	<manifestclasspath property="build.manifest.classpath" jarfile="${build.target.dir}/${build.jar.file}">
+    	    <classpath>
+    	    	<fileset dir="${build.target.dir}" />
+    	    </classpath>
+    	</manifestclasspath>
+        <jar destfile="${build.target.dir}/${build.jar.file}" filesetmanifest="mergewithoutmain">
             <manifest>
-                <attribute name="Main-Class" value="net.atomique.ksar.Main"/>
-                <attribute name="Class-Path" value="."/>
+                <attribute name="Main-Class" value="${build.jar.mainclass}"/>
+            	<attribute name="Class-Path" value="${build.manifest.classpath}"/>
             </manifest>
-            <fileset dir="bin"/>
-            <zipfileset excludes="META-INF/*.SF" src="lib/jfreechart-1.0.13.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="lib/jsch-0.1.42.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="lib/iText-2.1.5.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="lib/jcommon-1.0.16.jar"/>
+            <fileset dir="${build.output.dir}"/>
+        	<fileset file="LICENCE" />
+        	<fileset dir="${build.res.dir}" />
         </jar>
-    	<signjar jar="target/kSar.jar"
+    	<signjar jar="${build.target.dir}/${build.jar.file}"
     	         alias="${sign.alias}"
     		     keystore="${sign.keypath}"
     		     storepass="${sign.pass}" />
     </target>
+	<target name="copy_deps" depends="create_target_dir">
+	    <copy todir="${build.target.dir}">
+		   <fileset dir="${build.lib.dir}" excludes="*-sources*.jar, *-javadoc*.jar" />
+	    </copy>
+	</target>
+	<target name="release" depends="clean_up, retrieve_deps, build, create_target_dir, copy_deps, create_signed_jar, clean_up" />
 </project>
